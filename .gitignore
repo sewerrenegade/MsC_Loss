@@ -3,6 +3,11 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+
+Acevedo/
+test_results/
+lightning_logs/
+
 # C extensions
 *.so
 
