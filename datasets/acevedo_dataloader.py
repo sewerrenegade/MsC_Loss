@@ -11,9 +11,9 @@ AUTO_ENCODER_PROPORTION_OF_DATA = 0.7
 CLASSIFIER_PROPORTION_OF_DATA = 1 - AUTO_ENCODER_PROPORTION_OF_DATA
 AUTO_ENCODER_SPLIT = (0.7, 0.2, 0.1)
 CLASSIFIER_SPLIT = (0.7, 0.2, 0.1)
-DATASET_TARGETS = ['vae','classifier']
+DATASET_TARGETS = ['ae','classifier']
 class DualAcevedoImageDataModule(LightningDataModule):
-    def __init__(self, dataset_target = "vae", data_dir="Acevedo\processed_images_144", batch_size=32, num_workers=4):
+    def __init__(self, dataset_target = "ae", data_dir=os.path.join("Acevedo", "processed_images_144"), batch_size=32, num_workers=4):
         """
         Args:
             data_dir (str): Path to the main data folder.
@@ -27,8 +27,8 @@ class DualAcevedoImageDataModule(LightningDataModule):
         assert dataset_target in DATASET_TARGETS
         self.dataset_target = dataset_target
         self.data_dir = data_dir
-        self.vae_proportion = AUTO_ENCODER_PROPORTION_OF_DATA
-        self.vae_splits = AUTO_ENCODER_SPLIT
+        self.ae_proportion = AUTO_ENCODER_PROPORTION_OF_DATA
+        self.ae_splits = AUTO_ENCODER_SPLIT
         self.classifier_splits = CLASSIFIER_SPLIT
         self.classifier_proportion = CLASSIFIER_PROPORTION_OF_DATA
         self.batch_size = batch_size
@@ -50,17 +50,17 @@ class DualAcevedoImageDataModule(LightningDataModule):
         Prepares the dataset splits for training, validation, and testing.
         """
         # Load the full dataset
-        assert (self.classifier_proportion-self.vae_proportion) <= 1 #make sure no data leak occured
+        assert (self.classifier_proportion-self.ae_proportion) <= 1 #make sure no data leak occured
         full_dataset = datasets.ImageFolder(self.data_dir, transform=self.transform)
         total_samples = len(full_dataset)
-        vae_data_size = int(self.vae_proportion * total_samples)
+        ae_data_size = int(self.ae_proportion * total_samples)
         classifier_data_size = int(self.classifier_proportion * total_samples)
-        trash_size = total_samples - vae_data_size - classifier_data_size
-        vae_dataset, classifier_dataset, _ = random_split(full_dataset, [vae_data_size, classifier_data_size, trash_size])
+        trash_size = total_samples - ae_data_size - classifier_data_size
+        ae_dataset, classifier_dataset, _ = random_split(full_dataset, [ae_data_size, classifier_data_size, trash_size])
 
-        if self.dataset_target == "vae":
-            split = self.vae_splits
-            dataset = vae_dataset
+        if self.dataset_target == "ae":
+            split = self.ae_splits
+            dataset = ae_dataset
         elif self.dataset_target == "classifier":
             split = self.classifier_splits
             dataset = classifier_dataset

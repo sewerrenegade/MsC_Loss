@@ -3,7 +3,7 @@ import torch.nn as nn
 import pytorch_lightning as pl
 import matplotlib.pyplot as plt
 import umap
-
+import wandb
 from models.beta_variational_autoencoder import BetaVAE
 
 class VAE_exp(pl.LightningModule):
@@ -19,9 +19,13 @@ class VAE_exp(pl.LightningModule):
         """
         super(VAE_exp, self).__init__()
         self.beta = beta
+        if self.beta == 0:
+            model.normal_ae = True
+            
         self.lr = lr
         self.model = model
         self.test_phase_data = {"labels":[],"embeddings":[]}
+        self.best_checkpoint_path = None
 
     def forward(self, x):
         """Forward pass through the VAE."""
@@ -30,7 +34,7 @@ class VAE_exp(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         x, _ = batch  # Ignore labels
         x_recon, mu, logvar = self.forward(x)
-        loss, recon_loss, kl_div = self.beta_vae_loss(x, x_recon, mu, logvar)
+        loss, recon_loss, kl_div = self.beta_vae_loss(x, x_recon, mu, logvar,beta=self.beta)
         self.log('train_loss', loss, prog_bar=True,on_step=False,on_epoch=True)
         self.log('train_recon_loss', recon_loss, prog_bar=False,on_step=True,on_epoch=True)
         self.log('train_kl_div', kl_div, prog_bar=False,on_step=False,on_epoch=True)
@@ -39,7 +43,7 @@ class VAE_exp(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         x, _ = batch
         x_recon, mu, logvar = self.forward(x)
-        loss, recon_loss, kl_div = self.beta_vae_loss(x, x_recon, mu, logvar)
+        loss, recon_loss, kl_div = self.beta_vae_loss(x, x_recon, mu, logvar,beta=self.beta)
         self.log('val_loss', loss, prog_bar=True)
         self.log('val_recon_loss', recon_loss, prog_bar=False)
         self.log('val_kl_div', kl_div, prog_bar=False)
@@ -49,7 +53,7 @@ class VAE_exp(pl.LightningModule):
     def test_step(self, batch, batch_idx):
         x, y = batch  # For testing, labels are used
         x_recon, mu, logvar = self.forward(x)
-        loss, recon_loss, kl_div = self.beta_vae_loss(x, x_recon, mu, logvar)
+        loss, recon_loss, kl_div = self.beta_vae_loss(x, x_recon, mu, logvar,beta=self.beta)
         
         self.log('test_loss', loss, prog_bar=True)
         self.log('test_recon_loss', recon_loss, prog_bar=False)
@@ -65,7 +69,7 @@ class VAE_exp(pl.LightningModule):
         """Logs the best checkpoint path and visualizes latent codes at the end of testing."""
         self.visualize_ae_latent_space()
         if self.best_checkpoint_path:
-            self.logger.experiment.log({"best_checkpoint": self.best_checkpoint_path})
+            self.logger.experiment.add_text("best_checkpoint", self.best_checkpoint_path)
             
     def visualize_ae_latent_space(self):
         if not self.test_phase_data['embeddings']:
@@ -90,7 +94,7 @@ class VAE_exp(pl.LightningModule):
 
         # Log figure to Weights & Biases
         if self.logger:
-            self.logger.experiment.add_figure("umap_test_projection",fig)
+            wandb.log({"umap_test_projection": wandb.Image(fig)})
         plt.close()
         
     def configure_optimizers(self):
@@ -118,6 +122,7 @@ class VAE_exp(pl.LightningModule):
         # image_path = f"test_results/batch_{batch_idx}.png"
         # os.makedirs("test_results", exist_ok=True)
         # plt.savefig(image_path)
-        self.logger.experiment.add_figure("Reconstruction_test_imgs",fig,batch_idx)
+        # self.logger.experiment.add_figure("Reconstruction_test_imgs",fig,batch_idx)
+        wandb.log({"Reconstruction_test_imgs": wandb.Image(fig)})
         plt.close()
         

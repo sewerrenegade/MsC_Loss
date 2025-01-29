@@ -1,26 +1,44 @@
 import torch
 import torch.nn as nn
 import pytorch_lightning as pl
-
+import matplotlib.pyplot as plt
+import umap
+import wandb
 from custom_topo_tools.connectivity_topo_regularizer import TopologicalZeroOrderLoss
+from custom_topo_tools.moor_topo_reg import TopologicalSignatureDistance
 from custom_topo_tools.mds_regularizer import MDSLoss
 from models.image_classifier import ImageClassifier
 from models.basic_distance_fns import pairwise_euclidean_distance,pairwise_cosine_similarity
 
+DISTILLATION_LOSS_NAMES = ['prop_topo','moor_topo','mds','random','',None]
 class ClassifierExperiment(pl.LightningModule):
-    def __init__(self, model: ImageClassifier,ae_encoder = None, learning_rate=0.001,topo_weight = 0.0,dist_fnc = pairwise_cosine_similarity):
+    def __init__(self, model: ImageClassifier,ae_encoder = None, learning_rate=0.001,topo_weight = 0.0,dist_fnc = pairwise_euclidean_distance,distillation_loss_name = None):
         super(ClassifierExperiment, self).__init__()
+        assert distillation_loss_name in DISTILLATION_LOSS_NAMES
+        self.distillation_loss_name = distillation_loss_name
         self.classifier_model = model
-        # for param in self.classifier_model.parameters():
-        #     param.requires_grad = False
         self.topo_weight = topo_weight
         self.dist_fn = dist_fnc
         self.ae_encoder = ae_encoder
         self.cross_entropy_loss_fn = nn.CrossEntropyLoss()
-        self.dist_loss_fn =  MDSLoss() #TopologicalZeroOrderLoss(method="deep",timeout=5, multithreading=False,importance_calculation_strat=None)
+        self.dist_loss_fn =  self.get_distillation_loss_fn() #TopologicalZeroOrderLoss(method="deep",timeout=5, multithreading=False,importance_calculation_strat=None)
         self.loss_fn = self.combined_loss_fn
         self.test_phase_data = {"labels":[],"embeddings":[]}
         self.lr = learning_rate
+        self.best_checkpoint_path = None
+        
+    def get_distillation_loss_fn(self):
+        if self.distillation_loss_name == DISTILLATION_LOSS_NAMES[0]:
+            return TopologicalZeroOrderLoss(method="deep",timeout=5, multithreading=True,importance_calculation_strat='min')
+        elif self.distillation_loss_name == DISTILLATION_LOSS_NAMES[1]:
+            return TopologicalSignatureDistance(match_edges='symmetric',to_gpu=True if torch.cuda.is_available() else False)
+        elif self.distillation_loss_name == DISTILLATION_LOSS_NAMES[2]:
+            return MDSLoss()
+        elif self.distillation_loss_name == DISTILLATION_LOSS_NAMES[-1] or self.distillation_loss_name == DISTILLATION_LOSS_NAMES[-2]:
+            return None            
+        else:
+            raise NotImplementedError(f"{self.distillation_loss_name} is not implemented")
+            
         
     def combined_loss_fn(self, logits, labels, student_lc = None, teacher_lc = None):
         if teacher_lc is None or self.topo_weight is None or self.topo_weight == 0.0:
@@ -79,7 +97,7 @@ class ClassifierExperiment(pl.LightningModule):
         """Logs the best checkpoint path and visualizes latent codes at the end of testing."""
         self.visualize_classifier_latent_space()
         if self.best_checkpoint_path:
-            self.logger.experiment.log({"best_checkpoint": self.best_checkpoint_path})
+            self.logger.experiment.add_text("best_checkpoint", self.best_checkpoint_path)
             
     def visualize_classifier_latent_space(self):
         if not self.test_phase_data['embeddings']:
@@ -95,7 +113,7 @@ class ClassifierExperiment(pl.LightningModule):
         latents_2d = reducer.fit_transform(latents)
 
         # Create scatter plot
-        plt.figure(figsize=(8, 6))
+        fig = plt.figure(figsize=(8, 6))
         scatter = plt.scatter(latents_2d[:, 0], latents_2d[:, 1], c=labels, cmap='tab10', alpha=0.7)
         plt.colorbar(scatter, label="Class Labels")
         plt.title("UMAP Projection of Test Latent Codes")
@@ -104,7 +122,8 @@ class ClassifierExperiment(pl.LightningModule):
 
         # Log figure to Weights & Biases
         if self.logger:
-            self.logger.experiment.log({"umap_test_projection": plt})
+            wandb.log({"umap_test_projection": wandb.Image(fig)})
+            #self.logger.experiment.add_figure({"umap_test_projection", fig})
         plt.close()
     def configure_optimizers(self):
         return torch.optim.Adam(self.classifier_model.parameters(), lr=self.lr)

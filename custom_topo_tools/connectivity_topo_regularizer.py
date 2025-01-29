@@ -212,7 +212,7 @@ class TopologicalZeroOrderLoss(nn.Module):
             total_time_section = time.time() - start_time
             #print(f"Total time take for topology calculatation {total_time_section:.4f} seconds, nb of pers_pairs: {nb_of_persistent_pairs} of which {completed} where calculated, with {pairwise_distances_influenced} paris influenced ")
             if pairwise_distances_influenced > 0:
-                loss = (push_loss + pull_loss) / (completed*nb_of_persistent_pairs*nb_of_persistent_pairs) if completed != 0 else tensor(0.0, device=distances2.device)
+                loss = (push_loss + pull_loss) / (completed*nb_of_persistent_pairs) if completed != 0 else tensor(0.0, device=distances2.device)
                 topo_step_stats = {"topo_time_taken": float(total_time_section),"nb_of_persistent_edges":nb_of_persistent_pairs,
                                    "percentage_toporeg_calc":100*float(completed/ nb_of_persistent_pairs),"pull_push_ratio":float(nb_pulled_edges/(0.01+nb_pushed_edges)),
                                    "nb_pairwise_distance_influenced":pairwise_distances_influenced,"nb_unique_pairwise_distance_influenced":len(set_of_unique_edges_influenced),
