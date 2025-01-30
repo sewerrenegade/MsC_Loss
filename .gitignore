@@ -6,6 +6,7 @@ __pycache__/
 
 Acevedo/
 test_results/
+wandb/
 lightning_logs/
 
 # C extensions

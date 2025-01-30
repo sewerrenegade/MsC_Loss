@@ -26,7 +26,7 @@ def train_ae():
     checkpoint_callback = ModelCheckpoint(
         monitor="val_loss", save_top_k=1, mode="min", filename="best_model"
     )
-    trainer = pl.Trainer(max_epochs=100,callbacks=[checkpoint_callback],accelerator="gpu" if torch.cuda.is_available() else "cpu", devices=1)  # Use gpus=1 if GPU is available
+    trainer = pl.Trainer(max_epochs=1,callbacks=[checkpoint_callback],accelerator="gpu" if torch.cuda.is_available() else "cpu", devices=1)  # Use gpus=1 if GPU is available
     trainer.fit(experiment, datamodule= datamodule)
     experiment.best_checkpoint_path = checkpoint_callback.best_model_path
     result = trainer.test(experiment,datamodule,ckpt_path=experiment.best_checkpoint_path)
@@ -70,7 +70,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--mode", 
         choices=MODES_OF_OPERATION, 
-        help="Choose a mode of operation from the predefined list."
+        help="Choose a mode of operation from the predefined list.",
+        default="train_ae"
     )
     args = parser.parse_args()
     mode = args.mode
