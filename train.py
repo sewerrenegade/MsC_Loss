@@ -26,7 +26,7 @@ def train_ae():
     checkpoint_callback = ModelCheckpoint(
         monitor="val_loss", save_top_k=1, mode="min", filename="best_model"
     )
-    trainer = pl.Trainer(max_epochs=100,callbacks=[checkpoint_callback],accelerator="gpu" if torch.cuda.is_available() else "cpu", devices=1)  # Use gpus=1 if GPU is available
+    trainer = pl.Trainer(max_epochs=100,callbacks=[checkpoint_callback],accelerator="gpu" if torch.cuda.is_available() else "cpu", devices=1,logger = logger)  # Use gpus=1 if GPU is available
     trainer.fit(experiment, datamodule= datamodule)
     experiment.best_checkpoint_path = checkpoint_callback.best_model_path
     result = trainer.test(experiment,datamodule,ckpt_path=experiment.best_checkpoint_path)
@@ -41,7 +41,7 @@ def train_classifier():
     classifier_checkpoint_callback = ModelCheckpoint(
         monitor="val_accuracy", save_top_k=1, mode="max", filename="best_model"
             )
-    trainer = pl.Trainer(max_epochs=CLASSIFER_MAX_EPOCH,callbacks=[classifier_checkpoint_callback],accelerator="gpu" if torch.cuda.is_available() else "cpu", devices=1)  # Use gpus=1 if GPU is available
+    trainer = pl.Trainer(max_epochs=CLASSIFER_MAX_EPOCH,callbacks=[classifier_checkpoint_callback],accelerator="gpu" if torch.cuda.is_available() else "cpu", devices=1,logger = logger)  # Use gpus=1 if GPU is available
     trainer.fit(experiment, datamodule = datamodule)
     experiment.best_checkpoint_path = classifier_checkpoint_callback.best_model_path
     result = trainer.test(experiment,datamodule,ckpt_path=experiment.best_checkpoint_path)
@@ -53,7 +53,7 @@ def train_classifier_with_distillation(path_to_ae = "",distillation_loss_name = 
     classifier_checkpoint_callback = ModelCheckpoint(
         monitor="val_accuracy", save_top_k=1, mode="max", filename="best_model"
             )
-    trainer = pl.Trainer(max_epochs=CLASSIFER_MAX_EPOCH,callbacks=[classifier_checkpoint_callback],accelerator="gpu" if torch.cuda.is_available() else "cpu", devices=1)  # Use gpus=1 if GPU is available
+    trainer = pl.Trainer(max_epochs=CLASSIFER_MAX_EPOCH,callbacks=[classifier_checkpoint_callback],accelerator="gpu" if torch.cuda.is_available() else "cpu", devices=1,logger=logger)  # Use gpus=1 if GPU is available
     trainer.fit(experiment, datamodule = datamodule)
     experiment.best_checkpoint_path = classifier_checkpoint_callback.best_model_path
     result = trainer.test(experiment,datamodule,ckpt_path=experiment.best_checkpoint_path)
