@@ -25,8 +25,7 @@ class ConnectivityEncoderCalculator:
         self.component_persistence_importance_score = None
         self.component_total_importance_score = [1.0] * (self.n_vertices-1)
         self.persistence_of_components = None
-        # self.sanity_checker = []
-        #self.topo_progression_stats= [np.unique(zero_scale_topo, return_counts=True)]
+
     def get_component_birthed_at_index(self,index):
         state = self.topo_scale_evolution[index + 1]
         pers_pair = self.persistence_pairs[index]

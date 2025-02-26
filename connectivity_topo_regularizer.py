@@ -297,7 +297,12 @@ class TopologicalZeroOrderLoss(nn.Module):
             return scale_matching_method
         else:
             raise ValueError(f"Scale matching methode {scale_matching_method} does not exist")
-        
+    @staticmethod
+    def preprocess_dist_mat(D):
+        D = TopologicalZeroOrderLoss.to_numpy(D)
+        D = TopologicalZeroOrderLoss.perturb_distance_matrix(D)
+        return D
+    
     def calulate_space_connectivity_encoding(self,distance_matrix):
         topo_encoder = self.signature_calculator(distance_matrix,importance_calculation_strat=self.importance_calculation_strat)
         topo_encoder.calculate_connectivity()
@@ -314,6 +319,48 @@ class TopologicalZeroOrderLoss(nn.Module):
             return obj.detach().cpu().numpy()
         else:
             raise TypeError("Input must be a NumPy array or a PyTorch tensor")
+    @staticmethod
+    def perturb_distance_matrix(D, epsilon=1e-10):
+        """
+        Ensures that no two entries in the strict upper (or lower) triangular part of the distance matrix are the same.
+        
+        Args:
+            D (np.ndarray): Symmetric distance matrix of shape (N, N) with zeros on the diagonal.
+            epsilon (float): Smallest amount of noise added to break ties.
+            
+        Returns:
+            np.ndarray: Perturbed distance matrix.
+        """
+        assert D.shape[0] == D.shape[1], "D must be a square matrix"
+        assert np.allclose(D, D.T), "D must be symmetric"
+        assert np.all(np.diag(D) == 0), "Diagonal elements must be zero"
+
+        N = D.shape[0]
+        upper_tri_indices = np.triu_indices(N, k=1)
+        
+        # Extract strict upper triangular part
+        upper_values = D[upper_tri_indices]
+        
+        # Sort and find duplicates
+        unique_values, counts = np.unique(upper_values, return_counts=True)
+        duplicates = unique_values[counts > 1]
+        
+        # if len(duplicates) > 0:
+        #     print(f"Found {len(duplicates)} duplicate distances. Perturbing them...")
+
+        # Small random perturbation for duplicate values
+        for dup in duplicates:
+            duplicate_indices = np.where(upper_values == dup)[0]
+            perturbation = (np.random.rand(len(duplicate_indices)) - 0.5) * epsilon
+            upper_values[duplicate_indices] += perturbation
+        
+        # Assign back to upper triangle
+        D[upper_tri_indices] = upper_values
+        
+        # Reflect to lower triangle
+        D = (D + D.T) / 2  # Ensure symmetry
+        
+        return D
         
     def moor_method_calculate_loss_of_s1_on_s2(self,topo_encoding_space_1:ConnectivityEncoderCalculator,distances1,topo_encoding_space_2:ConnectivityEncoderCalculator,distances2):
         differentiable_scale_of_equivalent_edges_in_space_1 = []
