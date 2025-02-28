@@ -1,5 +1,5 @@
 import numpy as np
-import bisect
+
 IMPORTANCE_CALCULATION_STRATS = ['component_persistence','component_size','min','multiplication','none','all_dev']
 DEFAULT_IMPORTANCE_CALCULATION_STRAT = IMPORTANCE_CALCULATION_STRATS[-2]
 #WARNING: none of this is differentiable, torch can not track gradients through this... use this only to calculate and match topological features
@@ -15,41 +15,39 @@ class ConnectivityEncoderCalculator:
             self.importance_calculation_strat = importance_calculation_strat
             assert self.importance_calculation_strat in IMPORTANCE_CALCULATION_STRATS
         self.n_vertices = distance_mat.shape[0]
-        zero_scale_topo = np.arange(self.n_vertices, dtype=int)
-        self.topo_scale_evolution =[zero_scale_topo]
+        self.topo_scale_evolution =[]
         self._current_topology = np.arange(self.n_vertices, dtype=int)
         self.persistence_pairs = None
         self.scales = None
         self.distance_of_persistence_pairs = None
         self.component_size_importance_score = None
         self.component_persistence_importance_score = None
-        self.component_total_importance_score = [1.0] * (self.n_vertices-1)
+        self.component_total_importance_score = np.ones(self.n_vertices-1)
         self.persistence_of_components = None
 
     def get_component_birthed_at_index(self,index):
-        state = self.topo_scale_evolution[index + 1]
+        state = self.topo_scale_evolution[index]
         pers_pair = self.persistence_pairs[index]
         assert state[pers_pair[0]] == state[pers_pair[1]]
         return np.where(state == state[pers_pair[0]])[0] #assuming 1d array
     
-    def get_index_of_scale_closest_to(self,scale):
-        index = max(min(bisect.bisect_left(self.scales, scale),len(self.scales)-1),0)
-        return index
+    def find_index_just_smaller_np(self, target):
+        idx = np.searchsorted(self.scales, target) - 1
+        return idx if idx >= 0 else -1
 
-    def what_edges_needed_to_connect_these_components(self,set_dict:dict):
-        nb_of_sets = len(set_dict)
+    def what_edges_needed_to_connect_these_components(self,list_of_components:list):
+        nb_of_sets = len(list_of_components)
         set_to_edge_mapping = {}
-        index_keys = {index:set_name for index,set_name in enumerate(set_dict.keys())}
         if nb_of_sets == 1:
             pass
-        dist_mat = np.zeros((nb_of_sets, nb_of_sets))
+        set_distance_matrix = np.zeros((nb_of_sets, nb_of_sets))
         for i in range(nb_of_sets):
             for j in range(i+1,nb_of_sets):
-                edge,distance = self.get_shortest_distance_between_2_sets_ignoring_all_other_points(set_dict[index_keys[i]],set_dict[index_keys[j]])
-                dist_mat[i,j] = distance
-                dist_mat[j,i] = distance
-                set_to_edge_mapping[(i,j)] = (int(edge[0]),int(edge[1])) if int(edge[0])<int(edge[1]) else  (int(edge[1]),int(edge[0])) 
-        smaller_homology_problem = ConnectivityEncoderCalculator(distance_mat=dist_mat)
+                edge,distance = self.get_shortest_distance_between_2_sets_ignoring_all_other_points(list_of_components[i],list_of_components[j])
+                set_distance_matrix[i,j] = distance
+                set_distance_matrix[j,i] = distance
+                set_to_edge_mapping[(i,j)] = edge 
+        smaller_homology_problem = ConnectivityEncoderCalculator(distance_mat=set_distance_matrix,importance_calculation_strat="none")
         smaller_homology_problem.calculate_connectivity(calculate_importance=False)
         pers_pairs = smaller_homology_problem.persistence_pairs
         real_pers_pairs = [set_to_edge_mapping[pers_pair] for pers_pair in pers_pairs]
@@ -61,13 +59,14 @@ class ConnectivityEncoderCalculator:
         distances = self.distance_matrix[combinations[:,0],combinations[:,1]]
         shortest_index = np.argmin(distances)
         shortest_edge = combinations[shortest_index]
-        return shortest_edge,distances[shortest_index]
+        return np.sort(shortest_edge),distances[shortest_index]
 
     def normalize_score(self,score_list):
         if len(score_list) == 0:
             return score_list
         avg_importance = sum(score_list)/len(score_list)
         return [score/avg_importance for score in score_list]
+    
     def get_components_that_contain_these_points_at_this_scale_index(self,relevant_points,index_of_scale):
         state_at_scale_index = self.topo_scale_evolution[index_of_scale + 1,:]
         groups_included = {} #the key is the group name (ie point with largest index in comp) and value is a list of included points in component
@@ -76,14 +75,14 @@ class ConnectivityEncoderCalculator:
             if not grp_name in groups_included:
                 groups_included[grp_name] = np.where(state_at_scale_index == grp_name)[0]
         return groups_included
+    
     def calculate_connectivity(self,calculate_importance = True):
         tri_strict_upper_indices = np.triu_indices_from(self.distance_matrix,k=1)
         edge_weights = self.distance_matrix[tri_strict_upper_indices]
         edge_indices = np.argsort(edge_weights, kind='stable')
-
         persistence_pairs = []
         edge_distances = []
-        component_size_importance_score = []
+        component_size_importance_scores = []
         lifetime_of_components = []
         group_names = []
 
@@ -99,10 +98,10 @@ class ConnectivityEncoderCalculator:
                 continue # no 0 order topological feature created since connectivity remains unchanged
             
             members_of_u_group ,  members_of_v_group = self.merge_groups(u_group, v_group)
-            importance = min(len(members_of_u_group),len(members_of_v_group)) #(len(members_of_u_group)*len(members_of_v_group))**0.5
+            size_importance = min(len(members_of_u_group),len(members_of_v_group)) #(len(members_of_u_group)*len(members_of_v_group))**0.5
             persistence_pairs.append((min(u, v), max(u, v)))
             edge_distances.append(edge_weight)
-            component_size_importance_score.append(importance)
+            component_size_importance_scores.append(size_importance)
             
             lifetime_of_components.append(None)
             birth_index_u,birth_index_v = self.find_last_two_indices(group_names,u_group,v_group)
@@ -117,16 +116,16 @@ class ConnectivityEncoderCalculator:
             if len(persistence_pairs) == self.n_vertices -1:
                 assert lifetime_of_components[-1] == None
                 lifetime_of_components[-1] = 0.0
+                lifetime_of_components[-1] = max(lifetime_of_components)
                 break
         self.scales = [edge_distance/edge_distances[-1] for edge_distance in edge_distances] if edge_distances[-1] != 0 else edge_distances
         self.distance_of_persistence_pairs = edge_distances
         self.persistence_pairs = persistence_pairs
         self.topo_scale_evolution = np.vstack(self.topo_scale_evolution)
         if calculate_importance:
-            self.persistence_of_components = [lifetime_of_component/edge_distances[-1] for lifetime_of_component in lifetime_of_components]if edge_distances[-1] != 0 else lifetime_of_components
-            self.component_persistence_importance_score = self.normalize_score([lifetime_of_component/(self.scales[index]+self.scales[int(len(self.scales)*0.3)]) for index,lifetime_of_component in enumerate(self.persistence_of_components)])
-            self.component_size_importance_score = self.normalize_score(component_size_importance_score)
-
+            self.persistence_of_components = lifetime_of_components
+            self.component_persistence_importance_score = self.normalize_score(lifetime_of_components)#self.normalize_score([lifetime_of_component/(self.scales[index]+self.scales[int(len(self.scales)*0.3)]) for index,lifetime_of_component in enumerate(self.persistence_of_components)])
+            self.component_size_importance_score = self.normalize_score(component_size_importance_scores)
             # importance_strats = self.calculate_importance_score("all_dev")
             # import pandas as pd
             # df = pd.DataFrame(importance_strats)
@@ -134,7 +133,7 @@ class ConnectivityEncoderCalculator:
             # df.to_csv("importance_scores.csv", index=True)
             self.component_total_importance_score = self.calculate_importance_score()
             #self.component_total_importance_score = self.component_size_importance_score
-        pass
+        return self
     
     def calculate_importance_score(self,importance_calculation_strat = None):
         assert not self.component_size_importance_score is None
@@ -205,32 +204,13 @@ class ConnectivityEncoderCalculator:
             print("WTF u doing idiot")
             assert u_group != v_group
         return members_of_u_group[0] ,  members_of_v_group[0]
-    def what_connected_these_two_points_try(self, u, v):
-    # Find where `u` and `v` are connected
-        are_connected = self.topo_scale_evolution[:, u] == self.topo_scale_evolution[:, v]
-        
-        # Get the smallest index where u and v are connected, or -1 if not found
-        connecting_index = np.where(are_connected)[0][0] - 1 if are_connected.any() else -1
-        
-        if connecting_index != -1:
-            # Populate connection information only if a connection is found
-            connecting_info = {
-                "index": connecting_index,
-                "persistence_pair": self.persistence_pairs[connecting_index],
-                "scale": self.scales[connecting_index],
-                "median_order": connecting_index / len(self.persistence_pairs),
-            }
-            return connecting_info
-        else:
-            # Handle the case where no connection is found
-            return None  # or any other default response
         
     def what_connected_these_two_points(self,u,v):
         for index,connectivity in enumerate(self.topo_scale_evolution):
             if connectivity[u] == connectivity[v]:
-                connecting_index = index - 1 # this is because the s=0 topology encoding is inserted automatically
+                connecting_index = index
                 break
-        connecting_info = {"index": connecting_index,"persistence_pair": self.persistence_pairs[connecting_index],"scale": self.scales[connecting_index],"median_order":connecting_index/len(self.persistence_pairs)}
+        connecting_info = {"index": connecting_index,"persistence_pair": self.persistence_pairs[connecting_index],"scale": self.scales[connecting_index],"median_order":(connecting_index+1)/len(self.persistence_pairs)}
         return connecting_info
     
     def what_connected_this_point_to_this_set(self,point,vertex_set):
@@ -245,7 +225,7 @@ class ConnectivityEncoderCalculator:
         
         # Get the smallest index where a match exists
         try:
-            connecting_index = np.argmax(row_has_match) -1 if np.any(row_has_match) else None
+            connecting_index = np.argmax(row_has_match) if np.any(row_has_match) else None
         except IndexError:
             connecting_index = None
             
@@ -255,7 +235,7 @@ class ConnectivityEncoderCalculator:
                 "index": connecting_index,
                 "persistence_pair": self.persistence_pairs[connecting_index],
                 "scale": self.scales[connecting_index],
-                "median_order": connecting_index / len(self.persistence_pairs),
+                "median_order": (connecting_index+1) / len(self.persistence_pairs),
             }
             return connecting_info
         else:
@@ -266,5 +246,5 @@ class ConnectivityEncoderCalculator:
             if connectivity[point] in connectivity[set]:
                 connecting_index = index - 1 # this is because the s=0 topology encoding is inserted automatically
                 break
-        connecting_info = {"index": connecting_index,"persistence_pair": self.persistence_pairs[connecting_index],"scale": self.scales[connecting_index],"median_order":connecting_index/len(self.persistence_pairs)}
+        connecting_info = {"index": connecting_index,"persistence_pair": self.persistence_pairs[connecting_index],"scale": self.scales[connecting_index],"median_order":(connecting_index+1)/len(self.persistence_pairs)}
         return connecting_info

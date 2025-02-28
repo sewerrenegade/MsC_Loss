@@ -1,40 +1,6 @@
-
-import torch.nn as nn
-from torch import stack,tensor,Tensor,long,abs
-from numpy import ndarray
 import numpy as np
 import time
-from random import shuffle
-from concurrent.futures import ProcessPoolExecutor,as_completed,TimeoutError
-from math import ceil,floor
-from .topo_encoder import ConnectivityEncoderCalculator
-import random
-# topo function
 
-class Timer:
-    def __init__(self, timeout=2, start_time = None):
-        self.timeout = timeout
-        if start_time is None:
-            self.start_time = time.time()
-        else:
-            self.start_time = start_time
-    def clear(self):
-        self.start_time = time.time()
-    def set(self):
-        pass #this is nothing, just to mkae it compatible with mutithreading approach
-    def is_set(self):
-        """Check if the timer has exceeded the set timeout."""
-        return (time.time() - self.start_time) > self.timeout
-        
-    def __getstate__(self):
-        # Prepare the state dictionary, including start_time and timeout
-        return {'timeout': self.timeout, 'start_time': self.start_time}
-
-    def __setstate__(self, state):
-        # Restore the object's state exactly as it was
-        self.timeout = state['timeout']
-        self.start_time = state['start_time']
-    
 def deep_topo_loss_at_scale(topo_encoding_space_1,topo_encoding_space_2,s1_scale_indices,stop_event):
         scale_edges_pairings = []
         for s1_scale_index in s1_scale_indices:
@@ -68,9 +34,21 @@ def deep_topo_loss_at_scale(topo_encoding_space_1,topo_encoding_space_2,s1_scale
             else:
                 return scale_edges_pairings
         return scale_edges_pairings
+    
+class LazyTorchModule:
+    _base_class = None
 
+    @classmethod
+    def _load_base(cls):
+        if cls._base_class is None:
+            import torch.nn as nn  # Lazy import
+            cls._base_class = nn.Module
 
-class TopologicalZeroOrderLoss(nn.Module):
+    def __new__(cls, *args, **kwargs):
+        cls._load_base()
+        return super().__new__(cls._base_class)   
+
+class TopologicalZeroOrderLoss(LazyTorchModule):
     """Topological signature."""
     LOSS_ORDERS = [1,2]
     PER_FEATURE_LOSS_SCALE_ESTIMATION_METHODS =["match_scale_order","match_scale_distribution","moor_method","modified_moor_method","deep"]
@@ -85,8 +63,9 @@ class TopologicalZeroOrderLoss(nn.Module):
         """
         super().__init__()
         assert p in TopologicalZeroOrderLoss.LOSS_ORDERS
+        self.perform_lazy_imports()
         self.p = p
-        self.signature_calculator = ConnectivityEncoderCalculator
+        self.signature_calculator = ConnectivityEncoderCalculator # type: ignore 
         self.loss_fnc = self.get_torch_p_order_function()
         self.topo_feature_loss = self.get_topo_feature_approach(method)
         self.importance_scale_fraction_taken = importance_scale_fraction_taken
@@ -95,12 +74,12 @@ class TopologicalZeroOrderLoss(nn.Module):
         self.timeout = timeout
         self.multithreading= multithreading
         if self.multithreading and method == "deep":
-            self.available_threads = floor(self.get_thread_count() * 0.5) #take up 50% of available threads excluding the current one or the one this is executing on
+            self.available_threads = floor(self.get_thread_count() * 0.5) # type: ignore #take up 50% of available threads excluding the current one or the one this is executing on
             if self.available_threads == 0:
                 self.multithreading = False
                 self.stop_event = Timer(self.timeout)
             else:
-                self.executor =  ProcessPoolExecutor(max_workers=self.available_threads)#ThreadPoolExecutor(max_workers=self.available_threads)#
+                self.executor =  ProcessPoolExecutor(max_workers=self.available_threads)# type: ignore 
                 self.stop_event = Timer(self.timeout) #threading.Event()
                 self.main_thread_event = Timer(self.timeout*0.9)
                 try:
@@ -113,8 +92,15 @@ class TopologicalZeroOrderLoss(nn.Module):
             self.multithreading = False
             self.stop_event = Timer(self.timeout)
         print(f"Available threads : {self.available_threads}")
-    
-    def get_top_p_indices(self,topo_encoding_space: ConnectivityEncoderCalculator):
+        
+    def perform_lazy_imports(self):
+        from .multi_scale_connectivity_encoder import ConnectivityEncoderCalculator
+        from concurrent.futures import ProcessPoolExecutor,as_completed,TimeoutError
+        from math import floor
+        from random import shuffle,sample
+        from torch import stack,tensor,Tensor,long,abs
+        
+    def get_top_p_indices(self,topo_encoding_space):
         n_top = int(len(topo_encoding_space.component_total_importance_score) * self.importance_scale_fraction_taken)
         values_array = np.array(topo_encoding_space.component_total_importance_score)
 
@@ -125,7 +111,7 @@ class TopologicalZeroOrderLoss(nn.Module):
 
         good_indices = [i for i, v in enumerate(topo_encoding_space.component_total_importance_score) if v > cutoff_value]
         if len(eligible_indices) > n_top:
-            random_subsmaple_of_eligible_indices = random.sample(eligible_indices, n_top - len(good_indices))
+            random_subsmaple_of_eligible_indices = sample(eligible_indices, n_top - len(good_indices)) # type: ignore 
         else:
             random_subsmaple_of_eligible_indices = eligible_indices
         good_indices.extend(random_subsmaple_of_eligible_indices)
@@ -134,12 +120,12 @@ class TopologicalZeroOrderLoss(nn.Module):
         
 
    
-    def deep_scale_distribution_matching_loss_of_s1_on_s2(self, topo_encoding_space_1: ConnectivityEncoderCalculator, distances1, topo_encoding_space_2: ConnectivityEncoderCalculator, distances2):
+    def deep_scale_distribution_matching_loss_of_s1_on_s2(self, topo_encoding_space_1, distances1, topo_encoding_space_2, distances2):
         if distances2.requires_grad or self.calculate_all_losses:            
             self.stop_event.clear()
             nb_of_persistent_pairs = len(topo_encoding_space_1.persistence_pairs)
             shuffled_indices_of_topo_features = self.get_top_p_indices(topo_encoding_space_1)
-            shuffle(shuffled_indices_of_topo_features)
+            shuffle(shuffled_indices_of_topo_features) # type: ignore 
             k, m = divmod(len(shuffled_indices_of_topo_features), self.available_threads + 1)
             subdivided_list = [shuffled_indices_of_topo_features[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(self.available_threads + 1)]
             important_edges_for_each_scale = []
@@ -155,7 +141,7 @@ class TopologicalZeroOrderLoss(nn.Module):
                 threads_that_returned = 0
                 nb_of_complete_per_thread = []
                 try:
-                    for future in as_completed(futures,timeout=self.timeout):# this extra timeout is the amount of extra time it will w8 for last iteration to finish, otherwise it will dump all the results
+                    for future in as_completed(futures,timeout=self.timeout): # type: ignore # this extra timeout is the amount of extra time it will w8 for last iteration to finish, otherwise it will dump all the results
                         try:
                             result = future.result()
                             important_edges_for_each_scale.extend(result)
@@ -180,18 +166,18 @@ class TopologicalZeroOrderLoss(nn.Module):
             nb_pulled_edges = 0
             nb_pushed_edges = 0
             set_of_unique_edges_influenced = set()
-            push_loss = tensor(0.0, device=distances2.device)
-            pull_loss = tensor(0.0, device=distances2.device)
+            push_loss = tensor(0.0, device=distances2.device)# type: ignore 
+            pull_loss = tensor(0.0, device=distances2.device)# type: ignore 
             scale_demographic_infos = []
             for scale,pull_edges,push_edges,scale_index in important_edges_for_each_scale:
                 all_edges = pull_edges + push_edges
                 set_of_unique_edges_influenced.update(set(all_edges))
                 if len(all_edges) == 0:
                     continue
-                push_important_pairs_tensor = tensor(np.array(push_edges), dtype=long, device=distances2.device)
-                pull_important_pairs_tensor = tensor(np.array(pull_edges), dtype=long, device=distances2.device)
+                push_important_pairs_tensor = tensor(np.array(push_edges), dtype=long, device=distances2.device)# type: ignore 
+                pull_important_pairs_tensor = tensor(np.array(pull_edges), dtype=long, device=distances2.device)# type: ignore 
                 scale_demographic_info = [scale,0.0,0.0] #scale,pull,push
-                scale = tensor(scale, device=distances2.device)
+                scale = tensor(scale, device=distances2.device)# type: ignore 
                 if len(pull_edges) != 0:
                     pull_selected_diff_distances = distances2[pull_important_pairs_tensor[:, 0], pull_important_pairs_tensor[:, 1]] / topo_encoding_space_2.distance_of_persistence_pairs[-1]
                     pull_loss_at_this_scale = abs(pull_selected_diff_distances - scale) ** self.p
@@ -212,21 +198,21 @@ class TopologicalZeroOrderLoss(nn.Module):
             total_time_section = time.time() - start_time
             #print(f"Total time take for topology calculatation {total_time_section:.4f} seconds, nb of pers_pairs: {nb_of_persistent_pairs} of which {completed} where calculated, with {pairwise_distances_influenced} paris influenced ")
             if pairwise_distances_influenced > 0:
-                loss = (push_loss + pull_loss) / (completed*nb_of_persistent_pairs) if completed != 0 else tensor(0.0, device=distances2.device)
+                loss = (push_loss + pull_loss) / (completed*nb_of_persistent_pairs) if completed != 0 else tensor(0.0, device=distances2.device) # type: ignore 
                 topo_step_stats = {"topo_time_taken": float(total_time_section),"nb_of_persistent_edges":nb_of_persistent_pairs,
                                    "percentage_toporeg_calc":100*float(completed/ nb_of_persistent_pairs),"pull_push_ratio":float(nb_pulled_edges/(0.01+nb_pushed_edges)),
                                    "nb_pairwise_distance_influenced":pairwise_distances_influenced,"nb_unique_pairwise_distance_influenced":len(set_of_unique_edges_influenced),
                                    "rate_of_scale_calculation":float(completed)/float(total_time_section), "pull_push_loss_ratio":pull_loss.item()/push_loss.item() if  push_loss.item() != 0 else -1.0,
                                    "scale_loss_info":scale_demographic_infos,"std_of_workload_across_threads":std_of_workload_across_threads}
             else:
-                loss = tensor(0.0, device=distances2.device)
+                loss = tensor(0.0, device=distances2.device) # type: ignore 
                 topo_step_stats = {"topo_time_taken": float(total_time_section),"nb_of_persistent_edges":nb_of_persistent_pairs,
                                    "percentage_toporeg_calc":100*float(completed/ nb_of_persistent_pairs),
                                    "nb_pairwise_distance_influenced":pairwise_distances_influenced,"nb_unique_pairwise_distance_influenced":len(set_of_unique_edges_influenced)}
                 
             return loss ,topo_step_stats
         else:
-            return tensor(0.0, device=distances2.device),{}
+            return tensor(0.0, device=distances2.device),{} # type: ignore 
     
 
     def forward(self, distances1, distances2):
@@ -311,10 +297,10 @@ class TopologicalZeroOrderLoss(nn.Module):
     # using numpy to make sure autograd of torch is not disturbed
     @staticmethod
     def to_numpy(obj):
-        if isinstance(obj, ndarray):
+        if isinstance(obj, np.ndarray):
             # If it's already a NumPy array, return as is
             return obj
-        elif isinstance(obj, Tensor):
+        elif isinstance(obj, Tensor): # type: ignore 
             # Detach the tensor from the computation graph, move to CPU if necessary, and convert to NumPy
             return obj.detach().cpu().numpy()
         else:
@@ -362,7 +348,7 @@ class TopologicalZeroOrderLoss(nn.Module):
         
         return D
         
-    def moor_method_calculate_loss_of_s1_on_s2(self,topo_encoding_space_1:ConnectivityEncoderCalculator,distances1,topo_encoding_space_2:ConnectivityEncoderCalculator,distances2):
+    def moor_method_calculate_loss_of_s1_on_s2(self,topo_encoding_space_1,distances1,topo_encoding_space_2,distances2):
         differentiable_scale_of_equivalent_edges_in_space_1 = []
         differentiable_scale_of_equivalent_edges_in_space_2 = []
 
@@ -371,10 +357,10 @@ class TopologicalZeroOrderLoss(nn.Module):
             scale_of_edge_in_space_2 = distances2[topo_encoding_space_1.persistence_pairs[index][0],topo_encoding_space_1.persistence_pairs[index][0]]
             differentiable_scale_of_equivalent_edges_in_space_1.append(scale_of_edge_in_space_1)
             differentiable_scale_of_equivalent_edges_in_space_2.append(scale_of_edge_in_space_2)
-        differentiable_scale_of_equivalent_edges_in_space_1 = stack(differentiable_scale_of_equivalent_edges_in_space_1)
-        differentiable_scale_of_equivalent_edges_in_space_2 = stack(differentiable_scale_of_equivalent_edges_in_space_2)
+        differentiable_scale_of_equivalent_edges_in_space_1 = stack(differentiable_scale_of_equivalent_edges_in_space_1) # type: ignore 
+        differentiable_scale_of_equivalent_edges_in_space_2 = stack(differentiable_scale_of_equivalent_edges_in_space_2)# type: ignore 
         return self.loss_fnc(differentiable_scale_of_equivalent_edges_in_space_1,differentiable_scale_of_equivalent_edges_in_space_2)
-    def modified_moor_method_calculate_loss_of_s1_on_s2(self,topo_encoding_space_1:ConnectivityEncoderCalculator,distances1,topo_encoding_space_2:ConnectivityEncoderCalculator,distances2):
+    def modified_moor_method_calculate_loss_of_s1_on_s2(self,topo_encoding_space_1,distances1,topo_encoding_space_2,distances2):
         differentiable_scale_of_equivalent_edges_in_space_1 = []
         differentiable_scale_of_equivalent_edges_in_space_2 = []
 
@@ -383,26 +369,26 @@ class TopologicalZeroOrderLoss(nn.Module):
             scale_of_edge_in_space_2 = distances2[topo_encoding_space_1.persistence_pairs[index][0],topo_encoding_space_1.persistence_pairs[index][0]]
             differentiable_scale_of_equivalent_edges_in_space_1.append(scale_of_edge_in_space_1)
             differentiable_scale_of_equivalent_edges_in_space_2.append(scale_of_edge_in_space_2)
-        differentiable_scale_of_equivalent_edges_in_space_1 = stack(differentiable_scale_of_equivalent_edges_in_space_1)
-        differentiable_scale_of_equivalent_edges_in_space_2 = stack(differentiable_scale_of_equivalent_edges_in_space_2)/ topo_encoding_space_2.distance_of_persistence_pairs[-1]
+        differentiable_scale_of_equivalent_edges_in_space_1 = stack(differentiable_scale_of_equivalent_edges_in_space_1) # type: ignore 
+        differentiable_scale_of_equivalent_edges_in_space_2 = stack(differentiable_scale_of_equivalent_edges_in_space_2)/ topo_encoding_space_2.distance_of_persistence_pairs[-1] # type: ignore 
         return self.loss_fnc(differentiable_scale_of_equivalent_edges_in_space_1,differentiable_scale_of_equivalent_edges_in_space_2)
     
-    def scale_order_matching_loss_of_s1_on_s2(self,topo_encoding_space_1:ConnectivityEncoderCalculator,distances1,topo_encoding_space_2:ConnectivityEncoderCalculator,distances2):
+    def scale_order_matching_loss_of_s1_on_s2(self,topo_encoding_space_1,distances1,topo_encoding_space_2,distances2):
         differentiable_scale_of_equivalent_edges_in_space_1 = []
         differentiable_scale_of_equivalent_edges_in_space_2 = []
 
         for index,edge_indices in enumerate(topo_encoding_space_1.persistence_pairs):
             equivalent_feature_in_space_2 = topo_encoding_space_2.what_connected_these_two_points(edge_indices[0], edge_indices[1])
             equivalent_edge_in_space_2 = equivalent_feature_in_space_2["persistence_pair"]
-            scale_of_edge_in_space_1 = tensor(topo_encoding_space_2.scales[index]).to(distances1.device) #will break numpy inputs; and is non differentiable
+            scale_of_edge_in_space_1 = tensor(topo_encoding_space_2.scales[index]).to(distances1.device) #will break numpy inputs; and is non differentiable # type: ignore 
             scale_of_edge_in_space_2 = distances2[equivalent_edge_in_space_2[0], equivalent_edge_in_space_2[1]] / topo_encoding_space_2.distance_of_persistence_pairs[-1]            
             differentiable_scale_of_equivalent_edges_in_space_1.append(scale_of_edge_in_space_1)
             differentiable_scale_of_equivalent_edges_in_space_2.append(scale_of_edge_in_space_2)
-        differentiable_scale_of_equivalent_edges_in_space_1 = stack(differentiable_scale_of_equivalent_edges_in_space_1)
-        differentiable_scale_of_equivalent_edges_in_space_2 = stack(differentiable_scale_of_equivalent_edges_in_space_2)
+        differentiable_scale_of_equivalent_edges_in_space_1 = stack(differentiable_scale_of_equivalent_edges_in_space_1) # type: ignore 
+        differentiable_scale_of_equivalent_edges_in_space_2 = stack(differentiable_scale_of_equivalent_edges_in_space_2) # type: ignore 
         return self.loss_fnc(differentiable_scale_of_equivalent_edges_in_space_1,differentiable_scale_of_equivalent_edges_in_space_2)
     
-    def scale_distribution_matching_loss_of_s1_on_s2(self,topo_encoding_space_1:ConnectivityEncoderCalculator,distances1,topo_encoding_space_2:ConnectivityEncoderCalculator,distances2):
+    def scale_distribution_matching_loss_of_s1_on_s2(self,topo_encoding_space_1,distances1,topo_encoding_space_2,distances2):
         differentiable_scale_of_equivalent_edges_in_space_1 = []
         differentiable_scale_of_equivalent_edges_in_space_2 = []
         for index,edge_indices in enumerate(topo_encoding_space_1.persistence_pairs):
@@ -412,14 +398,15 @@ class TopologicalZeroOrderLoss(nn.Module):
             scale_of_edge_in_space_2 = distances2[equivalent_edge_in_space_2[0], equivalent_edge_in_space_2[1]] / topo_encoding_space_2.distance_of_persistence_pairs[-1]
             differentiable_scale_of_equivalent_edges_in_space_1.append(scale_of_edge_in_space_1)
             differentiable_scale_of_equivalent_edges_in_space_2.append(scale_of_edge_in_space_2)
-        differentiable_scale_of_equivalent_edges_in_space_1 = stack(differentiable_scale_of_equivalent_edges_in_space_1)
-        differentiable_scale_of_equivalent_edges_in_space_2 = stack(differentiable_scale_of_equivalent_edges_in_space_2)
+        differentiable_scale_of_equivalent_edges_in_space_1 = stack(differentiable_scale_of_equivalent_edges_in_space_1) # type: ignore 
+        differentiable_scale_of_equivalent_edges_in_space_2 = stack(differentiable_scale_of_equivalent_edges_in_space_2) # type: ignore 
         return self.loss_fnc(differentiable_scale_of_equivalent_edges_in_space_1,differentiable_scale_of_equivalent_edges_in_space_2)
     
 
 
     
     def get_torch_p_order_function(self):
+        import torch.nn as nn
         if self.p ==1 :
             return nn.L1Loss()
         elif self.p == 2:
@@ -460,3 +447,30 @@ class TopologicalZeroOrderLoss(nn.Module):
             threads_available_on_hardware = get_threads_from_hardware()
             return threads_available_on_hardware
         return get_allocated_threads_by_slurm()
+    
+
+
+class Timer:
+    def __init__(self, timeout=2, start_time = None):
+        self.timeout = timeout
+        if start_time is None:
+            self.start_time = time.time()
+        else:
+            self.start_time = start_time
+    def clear(self):
+        self.start_time = time.time()
+    def set(self):
+        pass #this is nothing, just to mkae it compatible with mutithreading approach
+    def is_set(self):
+        """Check if the timer has exceeded the set timeout."""
+        return (time.time() - self.start_time) > self.timeout
+        
+    def __getstate__(self):
+        # Prepare the state dictionary, including start_time and timeout
+        return {'timeout': self.timeout, 'start_time': self.start_time}
+
+    def __setstate__(self, state):
+        # Restore the object's state exactly as it was
+        self.timeout = state['timeout']
+        self.start_time = state['start_time']
+    

@@ -1,5 +1,5 @@
 from matplotlib import gridspec, pyplot as plt
-from d.static_distance_matrix_metrics import StaticDistanceMatrixMetricCalculator
+from .static_distance_matrix_metrics import StaticDistanceMatrixMetricCalculator
 import numpy as np
 np.random.seed(42)
 

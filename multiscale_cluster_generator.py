@@ -1,9 +1,10 @@
 import numpy as np
+np.random.seed(42)
 
 
 def calculate_distance_matrix_for_pointcloud(pointcloud = None):
     if pointcloud is None:
-        pointcloud = create_point_cloud_branching_clusters()
+        pointcloud,labels = create_point_cloud_branching_clusters()
         print("point cloud not specified generating one with default parameters")
     if isinstance(pointcloud,list):
         pointcloud = np.vstack(pointcloud)
@@ -14,6 +15,7 @@ def calculate_distance_matrix_for_pointcloud(pointcloud = None):
 
 
 def create_point_cloud_branching_clusters(number_of_clusters_at_each_scale = (3,3,3), nb_of_points_per_smallest_cluster = 5,dimension_of_space = 2,magnitude_difference_between_scales = 0.25):
+    
     number_of_clusters_at_each_scale = list(number_of_clusters_at_each_scale)
     number_of_clusters_at_each_scale.append(nb_of_points_per_smallest_cluster)
     center_of_clusters,cluster_labels = calculate_cluster_centers(number_of_clusters_at_each_scale=number_of_clusters_at_each_scale,dimension_of_space=dimension_of_space,magnitude_difference_between_scales=magnitude_difference_between_scales)

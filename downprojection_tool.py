@@ -13,7 +13,7 @@ from moviepy import ImageSequenceClip
 import matplotlib.gridspec as gridspec
 import time
 
-from .connectivity_topo_regularizer import TopologicalZeroOrderLoss
+from .multi_scale_connectivity_loss import TopologicalZeroOrderLoss
 from adan_pytorch import Adan
 from .moor_topo_reg import TopologicalSignatureDistance
 
