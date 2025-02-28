@@ -1,6 +1,17 @@
 import numpy as np
 import time
 
+
+
+from .multi_scale_connectivity_encoder import ConnectivityEncoderCalculator
+from concurrent.futures import ProcessPoolExecutor,as_completed,TimeoutError
+from math import floor
+from random import shuffle,sample
+from torch import stack,tensor,Tensor,long,abs
+import torch.nn as nn
+
+
+
 def deep_topo_loss_at_scale(topo_encoding_space_1,topo_encoding_space_2,s1_scale_indices,stop_event):
         scale_edges_pairings = []
         for s1_scale_index in s1_scale_indices:
@@ -9,12 +20,12 @@ def deep_topo_loss_at_scale(topo_encoding_space_1,topo_encoding_space_2,s1_scale
                 assert 0<= s1_scale_index< len(topo_encoding_space_1.scales)
                 component_birth_in_s1_due_to_pers_pair = topo_encoding_space_1.get_component_birthed_at_index(s1_scale_index)
                 scale_in_s1 = topo_encoding_space_1.scales[s1_scale_index]
-                index_of_scale_in_s2 = topo_encoding_space_2.get_index_of_scale_closest_to(scale_in_s1)
+                index_of_scale_in_s2 =  s1_scale_index# topo_encoding_space_2.get_index_of_scale_closest_to(scale_in_s1)
                 relevant_sets_in_s2 = topo_encoding_space_2.get_components_that_contain_these_points_at_this_scale_index(
                     relevant_points=component_birth_in_s1_due_to_pers_pair, index_of_scale=index_of_scale_in_s2 
                 )
                 to_push_out_at_this_scale = []
-                healthy_subsets = {}
+                healthy_subsets = []
 
                 for component_in_s2_name, member_vertices in relevant_sets_in_s2.items():
                     good_vertices = np.intersect1d(member_vertices, component_birth_in_s1_due_to_pers_pair)
@@ -24,7 +35,7 @@ def deep_topo_loss_at_scale(topo_encoding_space_1,topo_encoding_space_2,s1_scale
                                 point=vertex, vertex_set=good_vertices
                             )["persistence_pair"]
                             to_push_out_at_this_scale.append(pair_info)
-                    healthy_subsets[component_in_s2_name] = good_vertices#tensor(good_vertices, dtype=long, device=distances2.device)
+                    healthy_subsets.append(good_vertices)#tensor(good_vertices, dtype=long, device=distances2.device)
                 if len(healthy_subsets) > 1:
                     pairs_to_pull = topo_encoding_space_2.what_edges_needed_to_connect_these_components(healthy_subsets)
                 else:
@@ -35,18 +46,24 @@ def deep_topo_loss_at_scale(topo_encoding_space_1,topo_encoding_space_2,s1_scale
                 return scale_edges_pairings
         return scale_edges_pairings
     
-class LazyTorchModule:
-    _base_class = None
 
-    @classmethod
-    def _load_base(cls):
-        if cls._base_class is None:
-            import torch.nn as nn  # Lazy import
-            cls._base_class = nn.Module
 
-    def __new__(cls, *args, **kwargs):
-        cls._load_base()
-        return super().__new__(cls._base_class)   
+
+class LazyModuleMeta(type):
+    """Metaclass that ensures torch.nn.Module is only loaded when needed."""
+    
+    def __new__(cls, name, bases, dct):
+        if not any(issubclass(base, object) for base in bases):
+            import importlib
+            torch_nn = importlib.import_module("torch.nn")
+            bases = (torch_nn.Module,)  # Set the correct base class dynamically
+        return super().__new__(cls, name, bases, dct)
+
+class LazyTorchModule(metaclass=LazyModuleMeta):
+    """Base class that lazily loads torch.nn.Module when instantiated."""
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
 class TopologicalZeroOrderLoss(LazyTorchModule):
     """Topological signature."""
@@ -63,6 +80,7 @@ class TopologicalZeroOrderLoss(LazyTorchModule):
         """
         super().__init__()
         assert p in TopologicalZeroOrderLoss.LOSS_ORDERS
+        self.name = "prop_connectivity_loss"
         self.perform_lazy_imports()
         self.p = p
         self.signature_calculator = ConnectivityEncoderCalculator # type: ignore 

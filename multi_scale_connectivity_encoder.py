@@ -31,7 +31,7 @@ class ConnectivityEncoderCalculator:
         assert state[pers_pair[0]] == state[pers_pair[1]]
         return np.where(state == state[pers_pair[0]])[0] #assuming 1d array
     
-    def find_index_just_smaller_np(self, target):
+    def get_index_of_scale_closest_to(self, target):
         idx = np.searchsorted(self.scales, target) - 1
         return idx if idx >= 0 else -1
 
@@ -59,7 +59,7 @@ class ConnectivityEncoderCalculator:
         distances = self.distance_matrix[combinations[:,0],combinations[:,1]]
         shortest_index = np.argmin(distances)
         shortest_edge = combinations[shortest_index]
-        return np.sort(shortest_edge),distances[shortest_index]
+        return tuple(np.sort(shortest_edge)),distances[shortest_index]
 
     def normalize_score(self,score_list):
         if len(score_list) == 0:
@@ -68,13 +68,50 @@ class ConnectivityEncoderCalculator:
         return [score/avg_importance for score in score_list]
     
     def get_components_that_contain_these_points_at_this_scale_index(self,relevant_points,index_of_scale):
-        state_at_scale_index = self.topo_scale_evolution[index_of_scale + 1,:]
+        state_at_scale_index = self.topo_scale_evolution[index_of_scale,:]
         groups_included = {} #the key is the group name (ie point with largest index in comp) and value is a list of included points in component
         for point in relevant_points:
             grp_name = state_at_scale_index[point]
             if not grp_name in groups_included:
                 groups_included[grp_name] = np.where(state_at_scale_index == grp_name)[0]
         return groups_included
+    
+    def encode_connectivity(self):
+        """
+        Encode the connectivity of a space at each scale as strings, excluding single-point components.
+
+        Args:
+            connectivity_list (list of np.ndarray): List of connectivity arrays where each array is of length `n`.
+
+        Returns:
+            list of str: List of connectivity representations for each scale, excluding single-point components.
+        """
+        def array_to_connectivity_string(array):
+            """
+            Convert a connectivity array to a string representation like {2,3,4},{1},{0,5}, excluding single-point components.
+
+            Args:
+                array (np.ndarray): Array encoding connectivity.
+
+            Returns:
+                str: Connectivity string.
+            """
+            components = {}
+            for idx, value in enumerate(array):
+                leader = int(value)
+                if leader not in components:
+                    components[leader] = []
+                components[leader].append(idx)
+            
+            # Sort and format the components, excluding single-point ones
+            connectivity_parts = []
+            for component in components.values():
+                if len(component) > 1:  # Exclude single-point components
+                    connectivity_parts.append("{" + ",".join(map(str, sorted(component))) + "}")
+            
+            return ",".join(connectivity_parts)
+
+        return [array_to_connectivity_string(np.array(conn)) for conn in self.topo_scale_evolution]
     
     def calculate_connectivity(self,calculate_importance = True):
         tri_strict_upper_indices = np.triu_indices_from(self.distance_matrix,k=1)
