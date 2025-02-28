@@ -54,6 +54,7 @@ class ConnectivityDP:
         self.importance_calculation_strat = importance_calculation_strat
         self.dev_settings = dev_settings
         method = "deep"
+        use_multi_threading = not "single_thread" in dev_settings
         if "moor_method" in self.dev_settings:
             method = "moor_method"
 
@@ -66,6 +67,7 @@ class ConnectivityDP:
                 timeout=self.loss_calculation_timeout,
                 importance_scale_fraction_taken=self.take_top_p_scales,
                 importance_calculation_strat=importance_calculation_strat,
+                multithreading=use_multi_threading
             )
         self.opt_loss = -1.0
         self.opt_embedding = None
@@ -73,7 +75,7 @@ class ConnectivityDP:
         self.loss_per_epoch = []
         self.fit_time = -1.0
 
-    def fit_transform(self, X):
+    def fit_transform(self, X,x_initial = None):
         """
         Downproject the input nxd space to 2D by minimizing the distance matrix loss.
         Args:
@@ -86,7 +88,7 @@ class ConnectivityDP:
             X = torch.tensor(X, dtype=torch.float32)
         if self.normalize_input:
             X = self.normalize_perfeature_input(X)
-        initial_embedding = self.get_initial_embedding(X)
+        initial_embedding = self.get_initial_embedding(X,x_initial)
         original_distances = self.calculate_eucl_distance_matrix(X)
         target_embedding = initial_embedding
 
@@ -123,29 +125,37 @@ class ConnectivityDP:
         self.fit_time = time.time() - start_time
         return self.opt_embedding
 
-    def get_initial_embedding(self, X):
-        np.random.seed(42)
-        if self.initialization_scheme == "PCA":
-            pca = PCA(n_components=self.n_components)
-            return torch.tensor(
-                pca.fit_transform(X.numpy()), dtype=torch.float32, requires_grad=True
-            )
-        elif self.initialization_scheme == "random_uniform":
-            return torch.tensor(
-                np.random.uniform(-1, 1, size=(X.shape[0], self.n_components)),
-                dtype=torch.float32,
-                requires_grad=True,
-            )
-        elif self.initialization_scheme == "random_gaussian":
-            return torch.tensor(
-                np.random.normal(loc=0, scale=1, size=(X.shape[0], self.n_components)),
-                dtype=torch.float32,
-                requires_grad=True,
-            )
+    def get_initial_embedding(self, X,x_initial = None):
+        if x_initial is None:
+            np.random.seed(42)
+            if self.initialization_scheme == "PCA":
+                pca = PCA(n_components=self.n_components)
+                return torch.tensor(
+                    pca.fit_transform(X.numpy()), dtype=torch.float32, requires_grad=True
+                )
+            elif self.initialization_scheme == "random_uniform":
+                return torch.tensor(
+                    np.random.uniform(-1, 1, size=(X.shape[0], self.n_components)),
+                    dtype=torch.float32,
+                    requires_grad=True,
+                )
+            elif self.initialization_scheme == "random_gaussian":
+                return torch.tensor(
+                    np.random.normal(loc=0, scale=1, size=(X.shape[0], self.n_components)),
+                    dtype=torch.float32,
+                    requires_grad=True,
+                )
+            else:
+                raise ValueError(
+                    f"The initialization method {self.initialization_scheme} is not supported"
+                )
         else:
-            raise ValueError(
-                f"The initialization method {self.initialization_scheme} is not supported"
-            )
+            return torch.tensor(
+                    x_initial,
+                    dtype=torch.float32,
+                    requires_grad=True,
+                )
+          
 
     def calculate_eucl_distance_matrix(self, X):
         # Compute the pairwise distance matrix
@@ -211,11 +221,11 @@ class ConnectivityDP:
             current_time = datetime.now()
             formatted_time = current_time.strftime("%m_%d_%H_%M")
             self.vid_folder_path = (
-                "DownProjectionToolResults"
+                "DownProjectionToolResults/"
                 + f"{formatted_time}/"
             )
             self.imgs_folder_path = (
-                "DownProjectionToolResults"
+                "DownProjectionToolResults/"
                 + f"{formatted_time}/"
                 + "images/"
             )

@@ -20,7 +20,7 @@ def deep_topo_loss_at_scale(topo_encoding_space_1,topo_encoding_space_2,s1_scale
                 assert 0<= s1_scale_index< len(topo_encoding_space_1.scales)
                 component_birth_in_s1_due_to_pers_pair = topo_encoding_space_1.get_component_birthed_at_index(s1_scale_index)
                 scale_in_s1 = topo_encoding_space_1.scales[s1_scale_index]
-                index_of_scale_in_s2 =  s1_scale_index# topo_encoding_space_2.get_index_of_scale_closest_to(scale_in_s1)
+                index_of_scale_in_s2 = s1_scale_index # topo_encoding_space_2.get_index_of_scale_closest_to(scale_in_s1) # # 
                 relevant_sets_in_s2 = topo_encoding_space_2.get_components_that_contain_these_points_at_this_scale_index(
                     relevant_points=component_birth_in_s1_due_to_pers_pair, index_of_scale=index_of_scale_in_s2 
                 )
@@ -223,14 +223,14 @@ class TopologicalZeroOrderLoss(LazyTorchModule):
                                    "rate_of_scale_calculation":float(completed)/float(total_time_section), "pull_push_loss_ratio":pull_loss.item()/push_loss.item() if  push_loss.item() != 0 else -1.0,
                                    "scale_loss_info":scale_demographic_infos,"std_of_workload_across_threads":std_of_workload_across_threads}
             else:
-                loss = tensor(0.0, device=distances2.device) # type: ignore 
+                loss = tensor(0.0, device=distances2.device,requires_grad=True) # type: ignore 
                 topo_step_stats = {"topo_time_taken": float(total_time_section),"nb_of_persistent_edges":nb_of_persistent_pairs,
                                    "percentage_toporeg_calc":100*float(completed/ nb_of_persistent_pairs),
                                    "nb_pairwise_distance_influenced":pairwise_distances_influenced,"nb_unique_pairwise_distance_influenced":len(set_of_unique_edges_influenced)}
                 
             return loss ,topo_step_stats
         else:
-            return tensor(0.0, device=distances2.device),{} # type: ignore 
+            return tensor(0.0, device=distances2.device,requires_grad=True),{} # type: ignore 
     
 
     def forward(self, distances1, distances2):
