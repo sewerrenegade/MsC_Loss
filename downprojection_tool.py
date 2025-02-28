@@ -5,7 +5,6 @@ from sklearn.decomposition import PCA
 import sys
 import os
 
-from configs.global_config import GlobalConfig
 import json
 import matplotlib.pyplot as plt
 from tqdm import tqdm
@@ -212,13 +211,11 @@ class ConnectivityDP:
             current_time = datetime.now()
             formatted_time = current_time.strftime("%m_%d_%H_%M")
             self.vid_folder_path = (
-                GlobalConfig.RESULTS_FOLDER_PATH
-                + GlobalConfig.CONNECTIVITY_DP_VID_PATH
+                "DownProjectionToolResults"
                 + f"{formatted_time}/"
             )
             self.imgs_folder_path = (
-                GlobalConfig.RESULTS_FOLDER_PATH
-                + GlobalConfig.CONNECTIVITY_DP_VID_PATH
+                "DownProjectionToolResults"
                 + f"{formatted_time}/"
                 + "images/"
             )
