@@ -33,12 +33,14 @@ class ConnectivityDP:
         normalize_input=False,
         initialization_scheme="random_uniform",
         weight_decay=0.0,
-        loss_calculation_timeout=1.0,
+        loss_calculation_timeout=10.0,
         augmentation_scheme={},
         importance_calculation_strat=None,
         take_top_p_scales=1,
         show_progress_bar = True,
-        dev_settings={},
+        scale_matching_method="order",
+        match_scale_in_space=1,
+        dev_settings={}
     ):
         self.n_iter = n_iter
         self.n_components = n_components
@@ -50,6 +52,8 @@ class ConnectivityDP:
         self.take_top_p_scales = take_top_p_scales
         self.weight_decay = weight_decay
         self.optimizer_name = optimizer_name
+        self.scale_matching_method = scale_matching_method
+        self.match_scale_in_space= match_scale_in_space,
         self.augmentation_scheme = augmentation_scheme
         self.importance_calculation_strat = importance_calculation_strat
         self.dev_settings = dev_settings
@@ -67,7 +71,9 @@ class ConnectivityDP:
                 timeout=self.loss_calculation_timeout,
                 importance_scale_fraction_taken=self.take_top_p_scales,
                 importance_calculation_strat=importance_calculation_strat,
-                multithreading=use_multi_threading
+                multithreading=use_multi_threading,
+                scale_matching_method=self.scale_matching_method,
+                match_scale_in_space=self.match_scale_in_space
             )
         self.opt_loss = -1.0
         self.opt_embedding = None

@@ -2,7 +2,6 @@ from matplotlib import gridspec, pyplot as plt
 from .static_distance_matrix_metrics import StaticDistanceMatrixMetricCalculator
 import numpy as np
 np.random.seed(42)
-
 from .downprojection_tool import ConnectivityDP
 from scipy.spatial.distance import cdist
 from .multiscale_cluster_generator import create_point_cloud_branching_clusters
@@ -20,7 +19,9 @@ class ConnectivityHyperParamExperiment:
         augmentation_strength=0.00,
         size_of_data=200,
         weight_decay=0.0,
-        p_importance_filter = 1.0
+        p_importance_filter = 1.0,
+        scale_matching_strat = "order",
+        match_scale_in_space = 1
     ):
         self.dataset_name = dataset_name
         self.optimizer_name = optimizer_name
@@ -30,6 +31,8 @@ class ConnectivityHyperParamExperiment:
         self.augmentation_strength = augmentation_strength
         self.size_of_data = size_of_data
         self.weight_decay = weight_decay
+        self.scale_matching_strat = scale_matching_strat
+        self.match_scale_in_space = match_scale_in_space
         self.X, self.y = self.get_dataset()
         self.connectivity_dp = ConnectivityDP(
             n_components=2,
@@ -38,10 +41,12 @@ class ConnectivityHyperParamExperiment:
             optimizer_name=self.optimizer_name,
             normalize_input=self.normalize_input,
             weight_decay=self.weight_decay,
-            loss_calculation_timeout=10,
+            loss_calculation_timeout=20,
             augmentation_scheme={"name": "uniform", "p": self.augmentation_strength},
             show_progress_bar=False,take_top_p_scales=p_importance_filter,
             importance_calculation_strat=self.importance_weighting_strat,
+            scale_matching_method=self.scale_matching_strat,
+            match_scale_in_space=self.match_scale_in_space
         )
         
     def produce_2d_plot_of_embeddings(self, X, labels):
@@ -99,7 +104,7 @@ class ConnectivityHyperParamExperiment:
         # Show the plot
         plt.tight_layout()
         return fig
-
+    
 
     def run_experiment(self):
         connectivity_embedding = self.connectivity_dp.fit_transform(self.X)
