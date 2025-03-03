@@ -114,7 +114,7 @@ AUGMENTATION_STRENGTH_SWEEP =  {
     "LR": [1],
     "normalize_input": [False],
     "importance_weighting_strat": ["none"],
-    "augmentation_strength": [0.0,0.001,0.01,0.1,1],
+    "augmentation_strength": [0.0,0.001,0.01],
     "size_of_data": [200],
     "weight_decay": [0.0],
 }
@@ -129,3 +129,53 @@ DATA_SIZE_SWEEP =  {
     "size_of_data": [50,100,200,400],
     "weight_decay": [0.0],
 }
+
+NEW_PERUMTAIONS_MNIST = {
+    "dataset_name": [DATASETS[0]], #["MNIST", "SWISS_ROLL", "DinoBloom", "CLUSTERS"]
+    "optimizer_name": ["adam"],
+    "LR": [1.0],
+    "normalize_input": [False],
+    "importance_weighting_strat": ["none", "min",'component_persistence','component_size'],
+    "augmentation_strength": [0.0],
+    "size_of_data": [200],
+    "weight_decay": [0.0],
+    "scale_matching_strat":  ["order","distribution","similarity_1","similarity_2","similarity_3","similarity_4"],
+    "match_scale_in_space" : [1,2]
+}
+NEW_PERUMTAIONS_SWISS_ROLL = {
+    "dataset_name": [DATASETS[1]], #["MNIST", "SWISS_ROLL", "DinoBloom", "CLUSTERS"]
+    "optimizer_name": ["adam"],
+    "LR": [1.0],
+    "normalize_input": [False],
+    "importance_weighting_strat": ["none", "min",'component_persistence','component_size'],
+    "augmentation_strength": [0.0],
+    "size_of_data": [200],
+    "weight_decay": [0.0],
+    "scale_matching_strat":  ["order","distribution","similarity_1","similarity_2","similarity_3","similarity_4"],
+    "match_scale_in_space" : [1,2]
+}
+NEW_PERUMTAIONS_DINOBLOOM = {
+    "dataset_name": [DATASETS[2]], #["MNIST", "SWISS_ROLL", "DinoBloom", "CLUSTERS"]
+    "optimizer_name": ["adam"],
+    "LR": [1.0],
+    "normalize_input": [False],
+    "importance_weighting_strat": ["none", "min",'component_persistence','component_size'],
+    "augmentation_strength": [0.0],
+    "size_of_data": [200],
+    "weight_decay": [0.0],
+    "scale_matching_strat":  ["order","distribution","similarity_1","similarity_2","similarity_3","similarity_4"],
+    "match_scale_in_space" : [1,2]
+}
+NEW_PERUMTAIONS_CLUSTERS = {
+    "dataset_name": [DATASETS[3]], #["MNIST", "SWISS_ROLL", "DinoBloom", "CLUSTERS"]
+    "optimizer_name": ["adam"],
+    "LR": [1.0],
+    "normalize_input": [False],
+    "importance_weighting_strat": ["none", "min",'component_persistence','component_size'],
+    "augmentation_strength": [0.0],
+    "size_of_data": [200],
+    "weight_decay": [0.0],
+    "scale_matching_strat":  ["order","distribution","similarity_1","similarity_2","similarity_3","similarity_4"],
+    "match_scale_in_space" : [1,2]
+}
+
