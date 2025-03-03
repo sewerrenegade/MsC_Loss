@@ -1,0 +1,11 @@
+defaults:
+  - defaults 
+
+name: "uncert_balancing"
+student: true
+distillation_loss_name: 'prop_topo'
+distance_fn_name: 'cosine'
+distillation_loss_weight: "uncert_based"
+teacher_model_type: "dinobloom"
+kill_classification_loss: false
+project_name: "Connectivity_Distillation_Experiment_Testing"

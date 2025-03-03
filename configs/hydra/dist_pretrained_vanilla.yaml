@@ -1,0 +1,8 @@
+defaults:
+  - defaults 
+
+name: "vanilla_topo_pretrain"
+student: true
+load_classifier_checkpoint_path: "checkpoints/last-v9.ckpt"
+freeze_classifier_backbone: true
+classifier_max_epoch: 1000

@@ -1,0 +1,10 @@
+mode: train_classifier  # Options: train_ae, train_classifier, train_prop_topo_ae_classifier, train_moor_topo_ae_classifier, train_mds_ae_classifier
+HPC: true
+PROJECT_NAME: "Connectivity_Distillation_Experiment_V2"
+
+
+# Classifier settings
+NUM_CLASSES: 8
+CLASSIFIER_MAX_EPOCH: 100
+REPEAT_EXPERIMENT: 5
+LR: 0.001

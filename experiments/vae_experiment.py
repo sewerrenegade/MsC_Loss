@@ -4,10 +4,11 @@ import pytorch_lightning as pl
 import matplotlib.pyplot as plt
 import umap
 import wandb
+import numpy as np
 from models.beta_variational_autoencoder import BetaVAE
 
 class VAE_exp(pl.LightningModule):
-    def __init__(self, model:BetaVAE, beta=4, lr=1e-3):
+    def __init__(self, model:BetaVAE, beta=4, lr=1e-3,weight_decay = 0.0000005):
         """
         Beta-VAE implementation in PyTorch Lightning.
         
@@ -26,6 +27,7 @@ class VAE_exp(pl.LightningModule):
         self.model = model
         self.test_phase_data = {"labels":[],"embeddings":[]}
         self.best_checkpoint_path = None
+        self.weight_decay = weight_decay
 
     def forward(self, x):
         """Forward pass through the VAE."""
@@ -69,7 +71,7 @@ class VAE_exp(pl.LightningModule):
         """Logs the best checkpoint path and visualizes latent codes at the end of testing."""
         self.visualize_ae_latent_space()
         if self.best_checkpoint_path:
-            self.logger.experiment.add_text("best_checkpoint", self.best_checkpoint_path)
+            self.logger.experiment.log({"best_checkpoint": self.best_checkpoint_path})
             
     def visualize_ae_latent_space(self):
         if not self.test_phase_data['embeddings']:
@@ -98,31 +100,41 @@ class VAE_exp(pl.LightningModule):
         plt.close()
         
     def configure_optimizers(self):
-        return torch.optim.Adam(self.model.parameters(), lr=self.lr)
+        return torch.optim.Adam(self.model.parameters(), lr=self.lr,weight_decay=self.weight_decay)
 
     def beta_vae_loss(self, x, recon_x, mean, log_var, beta=4):
         recon_loss = nn.MSELoss()(recon_x, x)
         kl_loss = -0.5 * torch.sum(1 + log_var - mean.pow(2) - log_var.exp())
         return recon_loss + beta * kl_loss , recon_loss,kl_loss
 
-
     def log_image_comparison(self, x, x_recon, batch_idx, num_images=5):
         """Logs a comparison of original vs reconstructed images."""
-        x = x[:num_images].cpu().detach()
-        x_recon = x_recon[:num_images].cpu().detach()
+        
+        # Ensure x and x_recon have the same number of images
+        num_available = min(len(x), len(x_recon), num_images)
+        
+        if num_available == 0:
+            print(f"Warning: No images available for logging at batch {batch_idx}")
+            return
+        
+        x = x[:num_available].cpu().detach()
+        x_recon = x_recon[:num_available].cpu().detach()
 
-        fig, axes = plt.subplots(2, num_images, figsize=(num_images * 2, 4))
-        for i in range(num_images):
-            axes[0, i].imshow(x[i].permute(1, 2, 0), cmap='gray')
+        fig, axes = plt.subplots(2, num_available, figsize=(num_available * 2, 4))
+
+        # Ensure axes is always iterable even when num_available == 1
+        if num_available == 1:
+            axes = np.expand_dims(axes, axis=1)  # Make it (2, num_available) for consistency
+
+        for i in range(num_available):
+            axes[0, i].imshow(x[i].permute(1, 2, 0).numpy(), cmap='gray')
             axes[0, i].axis('off')
-            axes[1, i].imshow(x_recon[i].permute(1, 2, 0), cmap='gray')
+            axes[1, i].imshow(x_recon[i].permute(1, 2, 0).numpy(), cmap='gray')
             axes[1, i].axis('off')
 
         plt.suptitle(f"Original vs Reconstructed (Batch {batch_idx})")
-        # image_path = f"test_results/batch_{batch_idx}.png"
-        # os.makedirs("test_results", exist_ok=True)
-        # plt.savefig(image_path)
-        # self.logger.experiment.add_figure("Reconstruction_test_imgs",fig,batch_idx)
-        wandb.log({"Reconstruction_test_imgs": wandb.Image(fig)})
-        plt.close()
+
+        # Log the image to wandb
+        wandb.log({f"Reconstruction_test_imgs/batch_{batch_idx}": wandb.Image(fig)})
+        plt.close(fig)
         

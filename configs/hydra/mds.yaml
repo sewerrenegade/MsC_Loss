@@ -1,0 +1,10 @@
+defaults:
+  - defaults 
+
+name: "train_classifier_mds"
+student: true
+distillation_loss_name: 'mds'
+distance_fn_name: 'euclidean'
+distillation_loss_weight: 1
+teacher_model_type: "ae"
+teacher_model_path: "wandb_logs/Connectivity_Distillation_Experiment_V2/zqz7pl2y/checkpoints/best_model.ckpt"

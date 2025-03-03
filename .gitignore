@@ -3,12 +3,16 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-
+.hydra/
 Acevedo/
 test_results/
 wandb/
 lightning_logs/
-
+Connectivity_Distillation_Experiment_V2/
+checkpoints/
+models/DinoBloom/weights/
+outputs/
+wandb_logs/
 # C extensions
 *.so
 

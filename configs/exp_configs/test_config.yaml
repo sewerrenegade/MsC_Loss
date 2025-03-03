@@ -1,0 +1,19 @@
+mode: train_classifier  # Options: train_ae, train_classifier, train_prop_topo_ae_classifier, train_moor_topo_ae_classifier, train_mds_ae_classifier
+HPC: false
+PROJECT_NAME: "Connectivity_Distillation_Experiment"
+# Autoencoder settings
+AE_MODEL_PATH: "Connectivity_Distillation_Experiment_V2/zqz7pl2y/checkpoints/best_model.ckpt"
+AE_LATENT_DIM: 32
+beta: 0.0
+AE_MAX_EPOCH: 100
+
+# Classifier settings
+NUM_CLASSES: 8
+CLASSIFIER_MAX_EPOCH: 100
+REPEAT_EXPERIMENT: 2
+DISTILLATION_LOSS_FN_NAME: "mds" #['prop_topo','moor_topo','mds','random','',None]
+DISTILLATION_LOSS_CONFIG: {}
+LR: 0.001
+# Distillation settings
+topo_weight: 1
+DISTANCE_FN_NAME: 'euclidean'

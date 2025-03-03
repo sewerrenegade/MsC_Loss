@@ -1,0 +1,12 @@
+defaults:
+  - defaults 
+
+name: "distill_dino_resnet18"
+student: true
+distillation_loss_name: 'prop_topo'
+distance_fn_name: 'cosine'
+distillation_loss_weight: 1
+teacher_model_type: "dinobloom"
+classifier_max_epoch: 1000
+kill_classification_loss: true
+take_last_checkpoint: true

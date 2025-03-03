@@ -2,19 +2,33 @@ import torch
 import torch.nn as nn
 import torchvision.models as models
 class ImageClassifier(nn.Module):
-    def __init__(self, num_classes, latent_dim = 50):
+    def __init__(self, num_classes, latent_dim = 384,dino_bloom_backbone = None):
         super(ImageClassifier, self).__init__()
         # Load pre-trained ResNet18
-        self.backbone = models.resnet18(weights = models.ResNet18_Weights.DEFAULT)
-        # Remove the fully connected layer
-        self.backbone = nn.Sequential(*list(self.backbone.children())[:-1],nn.Flatten(start_dim=1), nn.Linear(512, 256))  # Keep layers except the final fc layer
+        if dino_bloom_backbone:
+            print("Using Dinobloom v2 S as backbone")
+            self.backbone = dino_bloom_backbone
+            latent_dim = 384
+        else:
+            self.backbone = models.resnet18(weights = models.ResNet18_Weights.DEFAULT) 
+            # Remove the fully connected layer
+            self.backbone = nn.Sequential(*list(self.backbone.children())[:-1],nn.Flatten(start_dim=1), nn.Linear(512, latent_dim))  # Keep layers except the final fc layer# dinobloomS output dim 384
         # Define a classification head
         self.classifier_head = nn.Sequential(
-            nn.Linear(256, latent_dim),  # ResNet-18 outputs a 512-d feature vector
+            nn.Linear(latent_dim, int(latent_dim/2)), 
             nn.ReLU(),
-            nn.Linear(latent_dim, num_classes),
+            nn.Linear(int(latent_dim/2), num_classes),
         )
 
+    def freeze_backbone(self):
+        print("Freezing classifier backbone")
+        for param in self.backbone.parameters():
+            param.requires_grad = False
+    def unfreeze_backbone(self):
+        print("Unfreezing classifier backbone")
+        for param in self.backbone.parameters():
+            param.requires_grad = True
+        
     def forward(self, x):
         # Extract latent code
         latent_code = self.backbone(x)

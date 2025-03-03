@@ -1,0 +1,12 @@
+defaults:
+  - defaults
+  
+name: "vanilla_ae"
+student: false
+
+ae_latent_dim: 32
+ae_max_epoch: 100
+ae_lr: 0.0001
+ae_weight_decay: 0.0000005
+vae_beta: 0.0
+

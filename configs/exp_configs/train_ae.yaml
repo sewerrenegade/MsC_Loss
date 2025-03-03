@@ -1,0 +1,8 @@
+mode: train_ae  # Options: train_ae, train_classifier, train_prop_topo_ae_classifier, train_moor_topo_ae_classifier, train_mds_ae_classifier
+HPC: true
+PROJECT_NAME: "Connectivity_Distillation_Experiment_V2"
+AE_LATENT_DIM: 32
+beta: 0.0
+AE_MAX_EPOCH: 100
+LR: 0.001
+REPEAT_EXPERIMENT: 5

@@ -1,0 +1,9 @@
+defaults:
+  - defaults 
+
+name: "train_classifier_dino_mds"
+student: true
+distillation_loss_name: 'mds'
+distance_fn_name: 'euclidean'
+distillation_loss_weight: "uncert_based"
+teacher_model_type: "dinobloom"

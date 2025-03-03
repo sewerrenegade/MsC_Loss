@@ -7,7 +7,7 @@ class TopologicalSignatureDistance(nn.Module):
     """Topological signature."""
 
     def __init__(self, sort_selected=False, use_cycles=False,
-                 match_edges=None,to_gpu = True):
+                 match_edges="symmetric",to_gpu = True):
         """Topological signature computation.
 
         Args:

@@ -1,0 +1,7 @@
+defaults:
+  - defaults 
+
+name: "dinobloom_backbone"
+use_dinobloom_as_backbone: true
+student: true
+repeat_exp: 10

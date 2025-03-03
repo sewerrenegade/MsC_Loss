@@ -1,5 +1,9 @@
-import torch
+print("hello world 1")
+import os
+print("hello world 1.1")
 
+import torch
+print("hello world 2")
 def pairwise_distance_matrix(x):
     """
     Calculate the pairwise distance matrix for a batch of vectors.
@@ -24,7 +28,7 @@ def pairwise_distance_matrix(x):
     
     return pairwise_distances
 x_flat = torch.randn(4, 2, requires_grad=True)      
-     
+print("hello world 3")    
 distances1 = torch.norm(x_flat[:, None] - x_flat, dim=2, p=2)
 distances2 = pairwise_distance_matrix(x_flat)
 print(x_flat)

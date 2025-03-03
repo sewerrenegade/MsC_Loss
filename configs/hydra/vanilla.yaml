@@ -1,0 +1,6 @@
+defaults:
+  - defaults 
+
+name: "vanilla"
+student: true
+repeat_exp: 10
