@@ -9,7 +9,7 @@ import numpy as np
 from .connectivity_dp_experiment import ConnectivityHyperParamExperiment
 
 class ConnectivityDPHyperparameterSweeper:
-    def __init__(self, config, name,save_dir = "connectivity_downprojection_results", n_repeats=1):
+    def __init__(self, config, name,results_dir = "connectivity_downprojection_results", n_repeats=1):
         """
         Initializes the hyperparameter sweeper.
 
@@ -22,11 +22,12 @@ class ConnectivityDPHyperparameterSweeper:
         self.n_repeats = n_repeats
         self.config_hash = self.hash_dict()
         self.name = name
-        self.folder_path = save_dir
+        self.results_dir = results_dir
+        self.folder_path = os.path.join(results_dir,f"{self.name}_{self.n_repeats}r_{self.config_hash}")
         os.makedirs(self.folder_path, exist_ok=True)
         self._save_config_dict()
-        self.results_file = f"{self.folder_path}{self.name}_results.csv"
-        self.progress_file = f"{self.folder_path}{self.name}_progress.json"
+        self.results_file =   os.path.join(self.folder_path,f"{self.name}_results.csv")
+        self.progress_file = os.path.join(self.folder_path,f"{self.name}_progress.json")
         self.param_combinations = list(itertools.product(*self.config.values()))
         self.columns = list(self.config.keys())
         self.results = self._load_previous_results()
@@ -73,7 +74,7 @@ class ConnectivityDPHyperparameterSweeper:
         return exp.run_experiment()
     
     def _save_loss_curve(self,loss_curve, index):
-        loss_curve_folder_path = f"{self.folder_path}loss_curves/"
+        loss_curve_folder_path = os.path.join(self.folder_path,"loss_curves")
         os.makedirs(loss_curve_folder_path, exist_ok=True)
         loss_curve_path = os.path.join(loss_curve_folder_path,f"{index}.png")
         fig, ax = plt.subplots(figsize=(8, 6))
@@ -86,7 +87,7 @@ class ConnectivityDPHyperparameterSweeper:
         plt.close(fig)
         
     def _save_experiment_figure(self, fig, index):
-        viz_folder_path = f"{self.folder_path}visualizations/"
+        viz_folder_path = os.path.join(self.folder_path,"visualizations")
         os.makedirs(viz_folder_path, exist_ok=True)
         viz_path = f"{viz_folder_path}{index}.png"
         fig.savefig(viz_path, format='png', bbox_inches="tight")
