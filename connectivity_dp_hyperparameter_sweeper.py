@@ -6,6 +6,7 @@ import itertools
 import hashlib
 import numpy as np
 import time
+import random
 import fcntl  # For file locking on Unix-based systems
 from .connectivity_dp_experiment import ConnectivityHyperParamExperiment
 
@@ -25,6 +26,13 @@ class ConnectivityDPHyperparameterSweeper:
         self.param_combinations = list(itertools.product(*self.config.values()))
         self.columns = list(self.config.keys())
         self.results = self._load_previous_results()
+        self.experiment_run_order = list(range(len(self.param_combinations)))
+        shuffle_seed = os.getpid() + int(time.time())
+        rng_state = random.getstate()
+        random.seed(shuffle_seed)
+        random.shuffle(self.experiment_run_order)
+        random.setstate(rng_state)
+        
 
     def _save_config_dict(self):
         with open(f"{self.folder_path}/config.json", "w") as f:
@@ -44,7 +52,7 @@ class ConnectivityDPHyperparameterSweeper:
 
     def _save_results(self, result_entry):
         results_df = pd.DataFrame([result_entry])
-        results_df.to_csv(self.results_file, mode="a", header=not os.path.exists(self.results_file), index=False)
+        results_df.to_csv(self.results_file, mode="a", header= not os.path.exists(self.results_file), index=False)
 
     def _load_progress(self):
         if not os.path.exists(self.progress_file):
@@ -76,11 +84,12 @@ class ConnectivityDPHyperparameterSweeper:
         return exp.run_experiment()
 
     def sweep(self):
-        in_progress, completed_experiments = self._load_progress()
-
         while True:
             next_experiment = None
-            for i, param_set in enumerate(self.param_combinations):
+            in_progress, completed_experiments = self._load_progress()
+            
+            for i in self.experiment_run_order:
+                param_set = self.param_combinations[i]
                 if i not in completed_experiments and i not in in_progress:
                     next_experiment = (i, param_set)
                     break
@@ -95,7 +104,6 @@ class ConnectivityDPHyperparameterSweeper:
             
             in_progress.add(i)
             self._save_progress(in_progress, completed_experiments)
-
             try:
                 metric_results = []
                 figs = []
@@ -112,7 +120,10 @@ class ConnectivityDPHyperparameterSweeper:
                     aggregated_results[f"{key}_std"] = np.std(values)
 
                 result_entry = {**params, **aggregated_results}
+                self._save_experiment_figure(figs[0], i)  # Save one sample figure
+                self._save_loss_curve(loss_curve,i)
                 self._save_results(result_entry)
+                in_progress, completed_experiments = self._load_progress()
                 self._save_progress(in_progress - {i}, completed_experiments | {i})
 
             except Exception as e:
@@ -122,3 +133,24 @@ class ConnectivityDPHyperparameterSweeper:
                 in_progress.remove(i)
                 self._save_progress(in_progress, completed_experiments)
                 break
+
+       
+    def _save_loss_curve(self,loss_curve, index):
+        loss_curve_folder_path = os.path.join(self.folder_path,"loss_curves")
+        os.makedirs(loss_curve_folder_path, exist_ok=True)
+        loss_curve_path = os.path.join(loss_curve_folder_path,f"{index}.png")
+        fig, ax = plt.subplots(figsize=(8, 6))
+        ax.plot(range(1, len(loss_curve) + 1), loss_curve, marker='o', linestyle='-')
+        ax.set_xlabel("Epoch")
+        ax.set_ylabel("Loss")
+        ax.set_title(f"Loss Curve of exp {index}")
+        ax.grid(True)
+        fig.savefig(loss_curve_path, format='png', bbox_inches="tight")
+        plt.close(fig)
+        
+    def _save_experiment_figure(self, fig, index):
+        viz_folder_path = os.path.join(self.folder_path,"visualizations")
+        os.makedirs(viz_folder_path, exist_ok=True)
+        viz_path = f"{viz_folder_path}{index}.png"
+        fig.savefig(viz_path, format='png', bbox_inches="tight")
+        plt.close(fig)
