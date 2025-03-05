@@ -21,7 +21,8 @@ class ConnectivityHyperParamExperiment:
         weight_decay=0.0,
         p_importance_filter = 1.0,
         scale_matching_strat = "order",
-        match_scale_in_space = 1
+        match_scale_in_space = 1,
+        n_iter = 2000
     ):
         self.dataset_name = dataset_name
         self.optimizer_name = optimizer_name
@@ -33,17 +34,19 @@ class ConnectivityHyperParamExperiment:
         self.weight_decay = weight_decay
         self.scale_matching_strat = scale_matching_strat
         self.match_scale_in_space = match_scale_in_space
+        self.n_iter = n_iter
         self.X, self.y = self.get_dataset()
         self.connectivity_dp = ConnectivityDP(
             n_components=2,
-            n_iter=2000,
+            n_iter=self.n_iter,
             learning_rate=self.LR,
             optimizer_name=self.optimizer_name,
             normalize_input=self.normalize_input,
             weight_decay=self.weight_decay,
             loss_calculation_timeout=20,
             augmentation_scheme={"name": "uniform", "p": self.augmentation_strength},
-            show_progress_bar=False,take_top_p_scales=p_importance_filter,
+            show_progress_bar=False,
+            take_top_p_scales=p_importance_filter,
             importance_calculation_strat=self.importance_weighting_strat,
             scale_matching_method=self.scale_matching_strat,
             match_scale_in_space=self.match_scale_in_space

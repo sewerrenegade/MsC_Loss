@@ -49,20 +49,20 @@ def match_scale_on_similarity(index_in_s1,cs1,cs2,opt_fnc):
     potential_components_of_interest = [cs2.get_components_that_contain_these_points_at_this_scale_index(
                     relevant_points=component_birth_in_s1_due_to_pers_pair, index_of_scale=index_in_s2 
                 ) for index_in_s2 in range(len(cs2.scales))]
-    nb_of_groups_to_nb_of_intruders = [(len(data),sum(v.size for v in data.values() if isinstance(v, np.ndarray))-size_of_birthed_component) for data in potential_components_of_interest]
-    opt_values = [opt_fnc(nb_groups,nb_intruders) for nb_groups,nb_intruders in nb_of_groups_to_nb_of_intruders]
+    nb_of_groups_nb_of_intruders_diff_in_scale_index = [(len(data),sum(v.size for v in data.values() if isinstance(v, np.ndarray))-size_of_birthed_component,abs(scale_index-index_in_s1)) for scale_index,data in enumerate(potential_components_of_interest)]
+    opt_values = [opt_fnc(nb_groups,nb_intruders,diff_in_index) for nb_groups,nb_intruders,diff_in_index in nb_of_groups_nb_of_intruders_diff_in_scale_index]
     min_value = min(opt_values)
     index_in_s2 = opt_values.index(min_value)
     return index_in_s2
     #print(nb_of_groups_to_nb_of_intruders)
-def optimization_fnc_1(nb_groups,nb_of_intruders):
-    return nb_groups+nb_of_intruders
-def optimization_fnc_2(nb_groups,nb_of_intruders):
-    return (nb_groups-1)**2+nb_of_intruders**2
-def optimization_fnc_3(nb_groups,nb_of_intruders):
-    return max(nb_groups-1,nb_of_intruders)
-def optimization_fnc_4(nb_groups,nb_of_intruders):
-    return nb_groups*(nb_of_intruders+1)    
+def optimization_fnc_1(nb_groups,nb_of_intruders,diff_in_index):
+    return nb_groups+nb_of_intruders+diff_in_index
+def optimization_fnc_2(nb_groups,nb_of_intruders,diff_in_index):
+    return (nb_groups-1)**2+nb_of_intruders**2+diff_in_index
+def optimization_fnc_3(nb_groups,nb_of_intruders,diff_in_index):
+    return max(nb_groups-1,nb_of_intruders,diff_in_index)
+def optimization_fnc_4(nb_groups,nb_of_intruders,diff_in_index):
+    return nb_groups*(nb_of_intruders+1)*(diff_in_index+1)
     
 def deep_topo_loss_at_scale(topo_encoding_space_1,topo_encoding_space_2,s1_scale_indices,stop_event,scale_matching_strat_fn,match_scale_in_space = 1):
         scale_edges_pairings = []
