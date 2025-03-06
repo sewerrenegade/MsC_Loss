@@ -50,17 +50,21 @@ class ConnectivityDPHyperparameterSweeper:
             return pd.read_csv(self.results_file).to_dict(orient="records")
         return []
 
-    def _save_results(self, result_entry):
+    def _save_results_safe(self, result_entry):
         results_df = pd.DataFrame([result_entry])
-        results_df.to_csv(self.results_file, mode="a", header= not os.path.exists(self.results_file), index=False)
+
+        with open(self.results_file, "a+") as f:
+            fcntl.flock(f, fcntl.LOCK_EX)  # Lock file to prevent race conditions
+            file_empty = (f.tell() == 0)  # Check if file is empty (to write headers)
+            results_df.to_csv(f, header=file_empty, index=False)
+            fcntl.flock(f, fcntl.LOCK_UN)  # Release lock
 
     def _load_progress(self):
-        if not os.path.exists(self.progress_file):
-            return set(), set()
-
-        with open(self.lock_file, "w") as lock_f:  # Open lock file for exclusive locking
-            fcntl.flock(lock_f, fcntl.LOCK_EX)  # Acquire exclusive lock
+        with open(self.lock_file, "w") as lock_f:
+            fcntl.flock(lock_f, fcntl.LOCK_EX)  # Lock the file before reading
             try:
+                if not os.path.exists(self.progress_file):
+                    return set(), set()
                 with open(self.progress_file, "r") as f:
                     try:
                         progress = json.load(f)
@@ -68,8 +72,7 @@ class ConnectivityDPHyperparameterSweeper:
                     except json.JSONDecodeError:
                         return set(), set()
             finally:
-                fcntl.flock(lock_f, fcntl.LOCK_UN)  # Release the lock after reading
-
+                fcntl.flock(lock_f, fcntl.LOCK_UN)
     def _save_progress(self, in_progress, completed):
         with open(self.lock_file, "w") as lock_f:  # Open lock file for exclusive locking
             fcntl.flock(lock_f, fcntl.LOCK_EX)  # Acquire exclusive lock
@@ -86,13 +89,21 @@ class ConnectivityDPHyperparameterSweeper:
     def sweep(self):
         while True:
             next_experiment = None
-            in_progress, completed_experiments = self._load_progress()
-            
-            for i in self.experiment_run_order:
-                param_set = self.param_combinations[i]
-                if i not in completed_experiments and i not in in_progress:
-                    next_experiment = (i, param_set)
-                    break
+
+            # Acquire lock to modify progress safely
+            with open(self.lock_file, "w") as lock_f:
+                fcntl.flock(lock_f, fcntl.LOCK_EX)
+
+                in_progress, completed_experiments = self._load_progress()
+
+                for i in self.experiment_run_order:
+                    if i not in completed_experiments and i not in in_progress:
+                        next_experiment = (i, self.param_combinations[i])
+                        in_progress.add(i)
+                        self._save_progress(in_progress, completed_experiments)  # Update progress
+                        break  # We only pick one experiment at a time
+
+                fcntl.flock(lock_f, fcntl.LOCK_UN)  # Release lock
 
             if next_experiment is None:
                 print("All experiments are completed or in progress!")
@@ -101,9 +112,7 @@ class ConnectivityDPHyperparameterSweeper:
             i, param_set = next_experiment
             params = dict(zip(self.columns, param_set))
             print(f"Starting experiment {i}")
-            
-            in_progress.add(i)
-            self._save_progress(in_progress, completed_experiments)
+
             try:
                 metric_results = []
                 figs = []
@@ -112,27 +121,41 @@ class ConnectivityDPHyperparameterSweeper:
                     metric_results.append(result_metrics)
                     figs.append(fig)
 
-                aggregated_results = {}
-                params["exp_idx"] = i
-                for key in metric_results[0]:
-                    values = [res[key] for res in metric_results]
-                    aggregated_results[f"{key}_mean"] = np.mean(values)
-                    aggregated_results[f"{key}_std"] = np.std(values)
+                # Aggregate results
+                aggregated_results = {f"{key}_mean": np.mean([res[key] for res in metric_results]) for key in metric_results[0]}
+                aggregated_results.update({f"{key}_std": np.std([res[key] for res in metric_results]) for key in metric_results[0]})
 
                 result_entry = {**params, **aggregated_results}
-                self._save_experiment_figure(figs[0], i)  # Save one sample figure
-                self._save_loss_curve(loss_curve,i)
-                self._save_results(result_entry)
-                in_progress, completed_experiments = self._load_progress()
-                self._save_progress(in_progress - {i}, completed_experiments | {i})
+
+                self._save_experiment_figure(figs[0], i)
+                self._save_loss_curve(loss_curve, i)
+
+                # Save results with a lock to prevent duplicated headers
+                self._save_results_safe(result_entry)
+
+                # Update progress to mark the experiment as completed
+                with open(self.lock_file, "w") as lock_f:
+                    fcntl.flock(lock_f, fcntl.LOCK_EX)
+                    in_progress, completed_experiments = self._load_progress()
+                    completed_experiments.add(i)
+                    in_progress.discard(i)
+                    self._save_progress(in_progress, completed_experiments)
+                    fcntl.flock(lock_f, fcntl.LOCK_UN)
 
             except Exception as e:
                 print(f"Error occurred at iteration {i}: {e}")
                 import traceback
                 traceback.print_exc()
-                in_progress.remove(i)
-                self._save_progress(in_progress, completed_experiments)
-                break
+                
+                # If an error occurs, remove from in_progress
+                with open(self.lock_file, "w") as lock_f:
+                    fcntl.flock(lock_f, fcntl.LOCK_EX)
+                    in_progress, completed_experiments = self._load_progress()
+                    in_progress.discard(i)  # Remove from in_progress
+                    self._save_progress(in_progress, completed_experiments)
+                    fcntl.flock(lock_f, fcntl.LOCK_UN)
+
+                break  # Stop execution on failure
 
        
     def _save_loss_curve(self,loss_curve, index):
