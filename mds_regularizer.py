@@ -5,7 +5,7 @@ import torch
 class MDSLoss(nn.Module):
     def __init__(self):
         super().__init__()
-    
+        self.name = "mds_loss"
     def forward(self, distances1, distances2):
         triangular_indices = torch.triu_indices(distances1.size(0), distances2.size(1), offset=0)
 
