@@ -1,0 +1,6 @@
+[submodule "prop_topo_tools"]
+	path = prop_topo_tools
+	url = https://github.com/sewerrenegade/MsC_Loss.git
+[submodule "MsC_Loss"]
+	path = MsC_Loss
+	url = git@github.com:sewerrenegade/MsC_Loss.git
