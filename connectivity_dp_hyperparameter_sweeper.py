@@ -7,7 +7,7 @@ import hashlib
 import numpy as np
 import time
 import random
-import fcntl  # For file locking on Unix-based systems
+import portalocker  # Cross-platform file locking
 from .connectivity_dp_experiment import ConnectivityHyperParamExperiment
 
 class ConnectivityDPHyperparameterSweeper:
@@ -32,7 +32,6 @@ class ConnectivityDPHyperparameterSweeper:
         random.seed(shuffle_seed)
         random.shuffle(self.experiment_run_order)
         random.setstate(rng_state)
-        
 
     def _save_config_dict(self):
         with open(f"{self.folder_path}/config.json", "w") as f:
@@ -52,59 +51,50 @@ class ConnectivityDPHyperparameterSweeper:
 
     def _save_results_safe(self, result_entry):
         results_df = pd.DataFrame([result_entry])
-
-        with open(self.results_file, "a+") as f:
-            fcntl.flock(f, fcntl.LOCK_EX)  # Lock file to prevent race conditions
+        with open(self.results_file, "a+", newline='') as f:  # Prevent Python from adding extra newlines
+            portalocker.lock(f, portalocker.LOCK_EX)  # Lock file to prevent race conditions
             file_empty = (f.tell() == 0)  # Check if file is empty (to write headers)
-            results_df.to_csv(f, header=file_empty, index=False)
-            fcntl.flock(f, fcntl.LOCK_UN)  # Release lock
+            results_df.to_csv(f, header=file_empty, index=False)  # Use single newline
+            portalocker.unlock(f)  # Release lock
+
 
     def _load_progress(self):
-        with open(self.lock_file, "w") as lock_f:
-            fcntl.flock(lock_f, fcntl.LOCK_EX)  # Lock the file before reading
+        if not os.path.exists(self.progress_file):
+            return set(), set()
+        with open(self.progress_file, "r") as f:
+            portalocker.lock(f, portalocker.LOCK_EX)  # Lock file for reading
             try:
-                if not os.path.exists(self.progress_file):
-                    return set(), set()
-                with open(self.progress_file, "r") as f:
-                    try:
-                        progress = json.load(f)
-                        return set(progress.get("in_progress", [])), set(progress.get("completed_idx", []))
-                    except json.JSONDecodeError:
-                        return set(), set()
+                progress = json.load(f)
+                return set(progress.get("in_progress", [])), set(progress.get("completed_idx", []))
+            except json.JSONDecodeError:
+                return set(), set()
             finally:
-                fcntl.flock(lock_f, fcntl.LOCK_UN)
+                portalocker.unlock(f)
+
     def _save_progress(self, in_progress, completed):
-        with open(self.lock_file, "w") as lock_f:  # Open lock file for exclusive locking
-            fcntl.flock(lock_f, fcntl.LOCK_EX)  # Acquire exclusive lock
-            try:
-                with open(self.progress_file, "w") as f:
-                    json.dump({"in_progress": list(in_progress), "completed_idx": list(completed)}, f)
-            finally:
-                fcntl.flock(lock_f, fcntl.LOCK_UN)  # Release the lock after writing
+        with open(self.progress_file, "w") as f:
+            portalocker.lock(f, portalocker.LOCK_EX)  # Lock file before writing
+            json.dump({"in_progress": list(in_progress), "completed_idx": list(completed)}, f)
+            portalocker.unlock(f)  # Release lock
 
     def run_experiment(self, **params):
         exp = ConnectivityHyperParamExperiment(**params)
         return exp.run_experiment()
 
     def sweep(self):
+        print(f"Starting sweep of config: {self.name}")
         while True:
             next_experiment = None
-
-            # Acquire lock to modify progress safely
-            with open(self.lock_file, "w") as lock_f:
-                fcntl.flock(lock_f, fcntl.LOCK_EX)
-
-                in_progress, completed_experiments = self._load_progress()
-
-                for i in self.experiment_run_order:
-                    if i not in completed_experiments and i not in in_progress:
-                        next_experiment = (i, self.param_combinations[i])
-                        in_progress.add(i)
-                        self._save_progress(in_progress, completed_experiments)  # Update progress
-                        break  # We only pick one experiment at a time
-
-                fcntl.flock(lock_f, fcntl.LOCK_UN)  # Release lock
-
+            in_progress, completed_experiments = self._load_progress()
+            
+            for i in self.experiment_run_order:
+                if i not in completed_experiments and i not in in_progress:
+                    next_experiment = (i, self.param_combinations[i])
+                    in_progress.add(i)
+                    self._save_progress(in_progress, completed_experiments)
+                    break
+            
+            
             if next_experiment is None:
                 print("All experiments are completed or in progress!")
                 break
@@ -121,47 +111,33 @@ class ConnectivityDPHyperparameterSweeper:
                     metric_results.append(result_metrics)
                     figs.append(fig)
 
-                # Aggregate results
                 aggregated_results = {f"{key}_mean": np.mean([res[key] for res in metric_results]) for key in metric_results[0]}
                 aggregated_results.update({f"{key}_std": np.std([res[key] for res in metric_results]) for key in metric_results[0]})
-
                 result_entry = {**params, **aggregated_results}
+                result_entry["experiment_index"] = i
 
                 self._save_experiment_figure(figs[0], i)
                 self._save_loss_curve(loss_curve, i)
-
-                # Save results with a lock to prevent duplicated headers
                 self._save_results_safe(result_entry)
 
-                # Update progress to mark the experiment as completed
-                with open(self.lock_file, "w") as lock_f:
-                    fcntl.flock(lock_f, fcntl.LOCK_EX)
-                    in_progress, completed_experiments = self._load_progress()
-                    completed_experiments.add(i)
-                    in_progress.discard(i)
-                    self._save_progress(in_progress, completed_experiments)
-                    fcntl.flock(lock_f, fcntl.LOCK_UN)
+                in_progress, completed_experiments = self._load_progress()
+                completed_experiments.add(i)
+                in_progress.discard(i)
+                self._save_progress(in_progress, completed_experiments)
 
             except Exception as e:
                 print(f"Error occurred at iteration {i}: {e}")
                 import traceback
                 traceback.print_exc()
-                
-                # If an error occurs, remove from in_progress
-                with open(self.lock_file, "w") as lock_f:
-                    fcntl.flock(lock_f, fcntl.LOCK_EX)
-                    in_progress, completed_experiments = self._load_progress()
-                    in_progress.discard(i)  # Remove from in_progress
-                    self._save_progress(in_progress, completed_experiments)
-                    fcntl.flock(lock_f, fcntl.LOCK_UN)
+                in_progress, completed_experiments = self._load_progress()
+                in_progress.discard(i)
+                self._save_progress(in_progress, completed_experiments)
+                break
 
-                break  # Stop execution on failure
-
-       
-    def _save_loss_curve(self,loss_curve, index):
-        loss_curve_folder_path = os.path.join(self.folder_path,"loss_curves")
+    def _save_loss_curve(self, loss_curve, index):
+        loss_curve_folder_path = os.path.join(self.folder_path, "loss_curves")
         os.makedirs(loss_curve_folder_path, exist_ok=True)
-        loss_curve_path = os.path.join(loss_curve_folder_path,f"{index}.png")
+        loss_curve_path = os.path.join(loss_curve_folder_path, f"{index}.png")
         fig, ax = plt.subplots(figsize=(8, 6))
         ax.plot(range(1, len(loss_curve) + 1), loss_curve, marker='o', linestyle='-')
         ax.set_xlabel("Epoch")
@@ -170,10 +146,10 @@ class ConnectivityDPHyperparameterSweeper:
         ax.grid(True)
         fig.savefig(loss_curve_path, format='png', bbox_inches="tight")
         plt.close(fig)
-        
+    
     def _save_experiment_figure(self, fig, index):
-        viz_folder_path = os.path.join(self.folder_path,"visualizations")
+        viz_folder_path = os.path.join(self.folder_path, "visualizations")
         os.makedirs(viz_folder_path, exist_ok=True)
-        viz_path = f"{viz_folder_path}{index}.png"
+        viz_path = os.path.join(viz_folder_path, f"{index}.png")
         fig.savefig(viz_path, format='png', bbox_inches="tight")
         plt.close(fig)

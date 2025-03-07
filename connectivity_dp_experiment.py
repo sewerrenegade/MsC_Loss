@@ -43,13 +43,14 @@ class ConnectivityHyperParamExperiment:
             optimizer_name=self.optimizer_name,
             normalize_input=self.normalize_input,
             weight_decay=self.weight_decay,
-            loss_calculation_timeout=20,
+            loss_calculation_timeout=50,
             augmentation_scheme={"name": "uniform", "p": self.augmentation_strength},
             show_progress_bar=False,
             take_top_p_scales=p_importance_filter,
             importance_calculation_strat=self.importance_weighting_strat,
             scale_matching_method=self.scale_matching_strat,
-            match_scale_in_space=self.match_scale_in_space
+            match_scale_in_space=self.match_scale_in_space,
+            single_thread = False            
         )
         
     def produce_2d_plot_of_embeddings(self, X, labels):
