@@ -25,7 +25,7 @@ class TopologicalZeroOrderLoss(LazyTorchModule):
     PER_FEATURE_LOSS_SCALE_ESTIMATION_METHODS =["match_scale_order","shallow","moor_method","modified_moor_method","deep"]
     SCALE_MATCHING_METHODS = ["order","distribution","similarity_1","similarity_2","similarity_3","similarity_4"]
 
-    def __init__(self,method="deep",p=2,timeout = 5,multithreading = True, scale_matching_method = "order",importance_scale_fraction_taken=1.0,importance_calculation_strat = None,match_scale_in_space =1):
+    def __init__(self,method="deep",p=2,timeout = 5,multithreading = True, scale_matching_method = "order",importance_scale_fraction_taken=1.0,importance_calculation_strat = None,match_scale_in_space =1,augmentation_factor = 0.0):
         """Topological signature computation.
 
         Args:
@@ -42,17 +42,18 @@ class TopologicalZeroOrderLoss(LazyTorchModule):
         self.loss_fnc = self.get_torch_p_order_function()
         self.topo_feature_loss = self.get_topo_feature_approach(method)
         self.scale_matching_fnc = self.get_scale_matching_fnc(scale_matching_method)
+        self.augmentation_factor = augmentation_factor # positive value
         self.importance_scale_fraction_taken = importance_scale_fraction_taken
         self.calculate_all_losses = False
         self.importance_calculation_strat = importance_calculation_strat
         self.timeout = timeout
         self.multithreading= multithreading
         self.match_scale_in_space= match_scale_in_space
+        print(f"Matching scale in Space:{self.match_scale_in_space}")
         self.loss_input_1_2 = True
         self.input_1_req_grad = False
         self.input_2_req_grad = False
-        self.setup_multithreading()      
-        
+        self.setup_multithreading()
 
         
         
@@ -252,8 +253,21 @@ class TopologicalZeroOrderLoss(LazyTorchModule):
 
     def preprocess_dist_mat(self,D):
         D = self.to_numpy(D)
+        D = self.augment_distance_matrix(D)
         D = self.perturb_distance_matrix(D)
         return D
+    
+    def augment_distance_matrix(self,D):
+        if self.augmentation_factor != 0.0:
+            high = self.augmentation_factor + 1
+            low = 1 - self.augmentation_factor
+            upper_triangle = np.random.rand(*D.shape) * (high - low) + low
+            symmetric_matrix = np.triu(upper_triangle) + np.triu(upper_triangle, 1).T
+            np.fill_diagonal(symmetric_matrix, 1)
+            
+            return D * symmetric_matrix
+        else:
+            return D
     
     def calulate_space_connectivity_encoding(self,distance_matrix):
         topo_encoder = self.signature_calculator(distance_matrix,importance_calculation_strat=self.importance_calculation_strat)
