@@ -40,6 +40,7 @@ class ConnectivityDP:
         show_progress_bar = True,
         scale_matching_method="order",
         match_scale_in_space=1,
+        single_thread = False,
         dev_settings={}
     ):
         self.n_iter = n_iter
@@ -56,9 +57,10 @@ class ConnectivityDP:
         self.match_scale_in_space= match_scale_in_space,
         self.augmentation_scheme = augmentation_scheme
         self.importance_calculation_strat = importance_calculation_strat
+        self.single_thread = single_thread or "single_thread" in dev_settings
         self.dev_settings = dev_settings
         method = "deep"
-        use_multi_threading = not "single_thread" in dev_settings
+        use_multi_threading = not self.single_thread
         if "moor_method" in self.dev_settings:
             method = "moor_method"
 

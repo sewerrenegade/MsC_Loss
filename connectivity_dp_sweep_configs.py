@@ -179,3 +179,17 @@ NEW_PERUMTAIONS_CLUSTERS = {
     "match_scale_in_space" : [1,2]
 }
 
+NEW_PERUMTAIONS_TEST = {
+    "dataset_name": [DATASETS[3]], #["MNIST", "SWISS_ROLL", "DinoBloom", "CLUSTERS"]
+    "optimizer_name": ["adam"],
+    "LR": [1.0],
+    "normalize_input": [False],
+    "importance_weighting_strat": ["none", "min",'component_persistence','component_size'],
+    "augmentation_strength": [0.0],
+    "size_of_data": [200],
+    "weight_decay": [0.0],
+    "scale_matching_strat":  ["order","distribution","similarity_1","similarity_2","similarity_3","similarity_4"],
+    "match_scale_in_space" : [1,2],
+    "n_iter": [3]
+}
+

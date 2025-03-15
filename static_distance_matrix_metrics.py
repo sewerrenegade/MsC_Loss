@@ -124,7 +124,7 @@ class StaticDistanceMatrixMetricCalculator:
         std = np.std(predictions == labels)
         
         # Print classification report
-        report = classification_report(labels, predictions,output_dict= True)
+        report = classification_report(labels, predictions,output_dict= True,zero_division=np.nan)
         conf_matrix = confusion_matrix(labels, predictions)
         
         return accuracy, std, report, conf_matrix
@@ -133,7 +133,7 @@ class StaticDistanceMatrixMetricCalculator:
         knn = KNeighborsClassifier(n_neighbors=k, metric='precomputed')
         knn.fit(distance_matrix, labels)
         predictions = knn.predict(distance_matrix)
-        report = classification_report(labels, predictions,output_dict= True)
+        report = classification_report(labels, predictions,output_dict= True,zero_division=np.nan)
         accuracy = np.mean(predictions == labels)
         accuracy_std = np.std(predictions == labels)
         conf_matrix = confusion_matrix(labels, predictions)
