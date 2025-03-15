@@ -105,18 +105,20 @@ class ConnectivityDPHyperparameterSweeper:
 
             try:
                 metric_results = []
-                figs = []
-                for _ in range(self.n_repeats):
+                for run_nb in range(self.n_repeats):
                     result_metrics, fig, loss_curve = self.run_experiment(**params)
+                    if run_nb != self.n_repeats - 1:
+                        plt.close(fig)
+                        loss_curve
                     metric_results.append(result_metrics)
-                    figs.append(fig)
+
 
                 aggregated_results = {f"{key}_mean": np.mean([res[key] for res in metric_results]) for key in metric_results[0]}
                 aggregated_results.update({f"{key}_std": np.std([res[key] for res in metric_results]) for key in metric_results[0]})
                 result_entry = {**params, **aggregated_results}
                 result_entry["experiment_index"] = i
 
-                self._save_experiment_figure(figs[0], i)
+                self._save_experiment_figure(fig, i)
                 self._save_loss_curve(loss_curve, i)
                 self._save_results_safe(result_entry)
 
