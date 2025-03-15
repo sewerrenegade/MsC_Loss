@@ -5,6 +5,9 @@ __pycache__/
 
 .hydra/
 Acevedo/
+bone_marrow/
+data_imagenet_a/
+
 test_results/
 wandb/
 lightning_logs/
