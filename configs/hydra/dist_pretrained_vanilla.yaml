@@ -1,8 +1,9 @@
 defaults:
   - defaults 
+  - _self_ 
 
 name: "vanilla_topo_pretrain"
 student: true
-load_classifier_checkpoint_path: "checkpoints/last-v9.ckpt"
+load_classifier_checkpoint_path: "wandb_logs/Connectivity_Distillation_Experiment_Base_6/bhn236u1/checkpoints/last.ckpt"
 freeze_classifier_backbone: true
-classifier_max_epoch: 1000
+

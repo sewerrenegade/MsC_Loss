@@ -1,6 +1,7 @@
 defaults:
   - defaults 
-
+  - _self_ 
+  
 name: "train_classifier_dino_moor_topo"
 student: true
 distillation_loss_name: 'moor_topo'

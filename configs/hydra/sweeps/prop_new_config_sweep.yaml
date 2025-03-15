@@ -1,0 +1,23 @@
+method: grid  # or grid/random
+project: new_optimize_dist_sweep
+program: sweep_injection.py
+metric:
+  name: val_distillation_loss
+  goal: minimize
+parameters:
+  config_path:
+    values: ["configs/hydra"]
+  config_name:
+    values: ["distill_dino_to_res18_euc"]
+  classifier_max_epoch:
+    values: [400]
+  take_last_checkpoint:
+    values: [true]
+  kill_classification_loss:
+    values: [true]
+  distillation_loss_config.scale_matching_method:
+    values: ["order","distribution","similarity_1","similarity_2","similarity_3","similarity_4"]
+  distillation_loss_config.importance_calculation_strat:
+    values: ['component_persistence','component_size','min','multiplication','none']
+  distillation_loss_config.match_scale_in_space:
+    values: [1,2]

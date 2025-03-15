@@ -1,0 +1,8 @@
+defaults:
+  - defaults 
+  - _self_ 
+  
+name: "dinobloom_backbone"
+image_encoder_name: 'dino-l'
+student: true
+repeat_exp: 10

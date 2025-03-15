@@ -1,11 +1,9 @@
 defaults:
-  - defaults 
+  - defaults
+  - _self_ 
 
-name: "uncert_balancing"
+name: "vanilla"
 student: true
-distillation_loss_name: 'prop_topo'
-distance_fn_name: 'cosine'
-distillation_loss_weight: "uncert_based"
-teacher_model_type: "dinobloom"
-kill_classification_loss: false
-project_name: "Connectivity_Distillation_Experiment_Testing"
+repeat_exp: 10
+image_encoder_name: "ShuffleNetV2_x1.5"
+dataset_name: "imagenet_a"

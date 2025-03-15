@@ -1,0 +1,10 @@
+defaults:
+  - defaults 
+  - _self_ 
+name: "train_classifier_dino_prop"
+student: true
+distillation_loss_name: 'prop_topo'
+distance_fn_name: 'euclidean'
+distillation_loss_weight: {"on_off": "", "patience":10,"low_weight":0.0001}
+teacher_model_type: "dinobloom"
+kill_classification_loss: false

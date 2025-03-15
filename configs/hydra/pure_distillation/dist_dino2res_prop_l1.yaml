@@ -1,0 +1,15 @@
+defaults:
+  - defaults 
+  - _self_ 
+
+name: "dist_dino2res_manhattan_prop"
+student: true
+distillation_loss_name: 'prop_topo'
+project_name: "Connectivity_Distillation_dst_fn_Exp"
+distillation_loss_config: {scale_matching_method: "distribution", importance_calculation_strat: "component_size",match_scale_in_space: 2}
+distance_fn_name: 'manhattan'
+distillation_loss_weight: 1
+teacher_model_type: "dinobloom"
+classifier_max_epoch: 800
+kill_classification_loss: true
+take_last_checkpoint: true

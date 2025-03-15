@@ -1,0 +1,10 @@
+defaults:
+  - defaults 
+  - _self_ 
+  
+
+name: "unfrozen_prop_pretrain"
+student: true
+load_classifier_checkpoint_path: "wandb_logs/Connectivity_Distillation_Distillation_Exp/htvv3g2x/checkpoints/last.ckpt"
+freeze_classifier_backbone: false
+project_name: "Connectivity_Distillation_Distillation_Exp"

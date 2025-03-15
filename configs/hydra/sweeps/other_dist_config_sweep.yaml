@@ -1,0 +1,19 @@
+method: grid  # or grid/random
+project: new_optimize_dist_sweep
+program: sweep_injection.py
+metric:
+  name: val_distillation_loss
+  goal: minimize
+parameters:
+  config_path:
+    values: ["configs/hydra"]
+  config_name:
+    values: ["distill_dino_to_res18_euc"]
+  classifier_max_epoch:
+    values: [400]
+  take_last_checkpoint:
+    values: [true]
+  kill_classification_loss:
+    values: [true]
+  distillation_loss_name:
+    values: ['mds','moor_topo','l2','prop_topo']

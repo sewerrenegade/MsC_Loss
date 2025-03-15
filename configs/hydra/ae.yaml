@@ -1,5 +1,6 @@
 defaults:
-  - defaults
+  - defaults 
+  - _self_ 
   
 name: "vanilla_ae"
 student: false

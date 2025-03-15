@@ -1,0 +1,9 @@
+defaults:
+  - defaults 
+  - _self_ 
+  
+name: "unfrozen_mds_pretrain"
+student: true
+load_classifier_checkpoint_path: "wandb_logs/Connectivity_Distillation_Distillation_Exp/vlnnbnmk/checkpoints/last.ckpt"
+freeze_classifier_backbone: false
+project_name: "Connectivity_Distillation_Distillation_Exp"

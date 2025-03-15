@@ -1,6 +1,6 @@
 defaults:
   - defaults 
-
+  - _self_ 
 name: "train_classifier_dino_prop"
 student: true
 distillation_loss_name: 'prop_topo'

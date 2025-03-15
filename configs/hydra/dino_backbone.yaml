@@ -1,7 +1,8 @@
 defaults:
   - defaults 
-
+  - _self_ 
+  
 name: "dinobloom_backbone"
-use_dinobloom_as_backbone: true
+image_encoder_name: 'DinoBloom-S'
 student: true
 repeat_exp: 10

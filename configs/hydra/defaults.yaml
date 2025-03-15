@@ -8,14 +8,14 @@ hydra:
 name: "default_run_name"
 
 logs_save_dir: "wandb_logs"
-project_name: "Connectivity_Distillation_Experiment_Base_5"
+project_name: "Connectivity_Distillation_Experiment_New_Playground" #"Connectivity_Distillation_Distillation_Exp"
 research_entity: "milad-research"
 
 hpc: true
 repeat_exp: 5
 
 student: true
-
+dataset_name: "bone_marrow" # Acevedo
 ae_latent_dim: 32
 ae_max_epoch: 100
 ae_lr: 0.0001
@@ -23,17 +23,18 @@ ae_weight_decay: 0.0000005
 vae_beta: 0.0
 ae_batch_size: 32
 
-
-num_classes: 8
-classifier_max_epoch: 600
-classifier_lr: 0.00002
+image_encoder_name: 'ResNet18'
+use_image_net_weights: true
+classifier_max_epoch: 20
+classifier_lr: 0.00008
 classifier_batch_size: 32
 classifier_weight_decay: 0.000001
 classifier_backbone_out_dim: 384
 take_last_checkpoint: false
 load_classifier_checkpoint_path: ""
 freeze_classifier_backbone: false
-use_dinobloom_as_backbone: false
+
+
 
 
 teacher_model_type: ''
@@ -43,5 +44,8 @@ distillation_loss_weight: 0.0
 distillation_loss_name: ''
 distillation_loss_config: {}
 kill_classification_loss: false
+kill_distillation_loss: false
 
-stratify_dataset: false
+different_learning_rate_for_classifier: false
+
+stratify_dataset: true

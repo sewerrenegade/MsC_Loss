@@ -1,6 +1,7 @@
 defaults:
   - defaults 
-
+  - _self_ 
+  
 name: "train_classifier_dino_l2"
 student: true
 distillation_loss_name: 'l2'

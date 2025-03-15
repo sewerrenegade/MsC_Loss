@@ -1,0 +1,14 @@
+defaults:
+  - defaults 
+  - _self_ 
+  
+name: "distill_dino_resnet18"
+student: true
+distillation_loss_name: 'prop_topo'
+distillation_loss_config: {scale_matching_method: "distribution", importance_calculation_strat: "component_size",match_scale_in_space: 2}
+distance_fn_name: 'euclidean'
+distillation_loss_weight: 1
+teacher_model_type: "dinobloom"
+classifier_max_epoch: 1000
+kill_classification_loss: true
+take_last_checkpoint: true

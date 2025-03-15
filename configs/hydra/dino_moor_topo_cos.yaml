@@ -1,9 +1,0 @@
-defaults:
-  - defaults 
-
-name: "train_classifier_dino_moor_topo"
-student: true
-distillation_loss_name: 'moor_topo'
-distance_fn_name: 'cosine'
-distillation_loss_weight: "uncert_based"
-teacher_model_type: "dinobloom"

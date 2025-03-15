@@ -9,13 +9,13 @@ from sklearn.model_selection import StratifiedShuffleSplit
 from pytorch_lightning import LightningDataModule
 from PIL import Image
 
-AUTO_ENCODER_PROPORTION_OF_DATA = 0.95
+AUTO_ENCODER_PROPORTION_OF_DATA = 0.85
 CLASSIFIER_PROPORTION_OF_DATA = 1 - AUTO_ENCODER_PROPORTION_OF_DATA
 AUTO_ENCODER_SPLIT = (0.6, 0.2, 0.2)
-CLASSIFIER_SPLIT = (0.15, 0.15, 0.7)
+CLASSIFIER_SPLIT = (0.05, 0.05, 0.9)
 DATASET_TARGETS = ['ae','classifier']
 class DualAcevedoImageDataModule(LightningDataModule):
-    def __init__(self, dataset_target = "ae", data_dir=os.path.join("Acevedo", "processed_images_144"), batch_size=32, num_workers=4,stratify = False):
+    def __init__(self, dataset_target = "classifier", data_dir=os.path.join("Acevedo", "processed_images_144"), batch_size=32, num_workers=4,stratify = False):
         """
         Args:
             data_dir (str): Path to the main data folder.
@@ -36,6 +36,9 @@ class DualAcevedoImageDataModule(LightningDataModule):
         self.startify = stratify
         self.batch_size = batch_size
         self.num_workers = num_workers
+        self.nb_classes = 8
+        self.dataset_type = "single_cell"
+        self.full_dataset = None
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
         # Transforms to apply to the images
@@ -44,17 +47,21 @@ class DualAcevedoImageDataModule(LightningDataModule):
             transforms.ToTensor()
             
         ])
-
+        
         self.part_a_data = None
         self.part_b_data = None
         
     def setup(self, stage = None):
-        if self.startified_setup:
-            print("Running startified setup of dataset")
-            self.startified_setup(stage)
-        else:
-            print("Running UNstartified setup of dataset")
-            self.unstratisfied_setup(stage)
+        if stage == "fit":
+            self.full_dataset = datasets.ImageFolder(self.data_dir, transform=self.transform)
+            if self.startify:
+                print("Running startified setup of dataset")
+                self.startified_setup(stage)
+            else:
+                print("Running UNstartified setup of dataset")
+                self.unstratisfied_setup(stage)
+        elif stage == "test":
+            print("Test dataloader already setup during training setup")
             
     def unstratisfied_setup(self, stage=None):
         """
@@ -62,7 +69,7 @@ class DualAcevedoImageDataModule(LightningDataModule):
         """
         # Load the full dataset
         assert (self.classifier_proportion-self.ae_proportion) <= 1 #make sure no data leak occured
-        full_dataset = datasets.ImageFolder(self.data_dir, transform=self.transform)
+        full_dataset = self.full_dataset
         total_samples = len(full_dataset)
         ae_data_size = int(self.ae_proportion * total_samples)
         classifier_data_size = int(self.classifier_proportion * total_samples)
@@ -93,7 +100,7 @@ class DualAcevedoImageDataModule(LightningDataModule):
         # Load the full dataset
         assert (self.classifier_proportion + self.ae_proportion) <= 1, "Data leakage detected!"
 
-        full_dataset = datasets.ImageFolder(self.data_dir, transform=self.transform)
+        full_dataset = self.full_dataset
         total_samples = len(full_dataset)
         targets = np.array(full_dataset.targets)  # Extract class labels
 
@@ -142,14 +149,6 @@ class DualAcevedoImageDataModule(LightningDataModule):
         print_split_stats("Train", self.train_set)
         print_split_stats("Validation", self.val_set)
         print_split_stats("Test", self.test_set)
-
-                    
-            # x = self.train_set[0]
-            # y = dataset[self.train_set.indices[0]]
-            # z = full_dataset[dataset.indices[self.train_set.indices[0]]]
-            # img_name = full_dataset.imgs[dataset.indices[self.train_set.indices[0]]]
-            # path = self.get_pic_path(self.train_set,0)
-        pass
 
     def get_pic_path(self,dataset,idx):
         while hasattr(dataset,"dataset"):

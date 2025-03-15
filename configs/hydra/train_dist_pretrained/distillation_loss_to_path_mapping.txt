@@ -1,0 +1,6 @@
+prop: wandb_logs/Connectivity_Distillation_Distillation_Exp/htvv3g2x/checkpoints/last.ckpt
+moor: wandb_logs/Connectivity_Distillation_Distillation_Exp/qhmi4ayi/checkpoints/last.ckpt
+mds: wandb_logs/Connectivity_Distillation_Distillation_Exp/vlnnbnmk/checkpoints/last.ckpt
+l2: wandb_logs/Connectivity_Distillation_Distillation_Exp/73wg850x/checkpoints/last.ckpt
+ect: wandb_logs/Connectivity_Distillation_Distillation_Exp/nkss0u74/checkpoints/last.ckpt
+
