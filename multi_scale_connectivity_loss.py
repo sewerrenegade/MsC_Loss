@@ -25,7 +25,7 @@ class TopologicalZeroOrderLoss(LazyTorchModule):
     PER_FEATURE_LOSS_SCALE_ESTIMATION_METHODS =["match_scale_order","shallow","moor_method","modified_moor_method","deep"]
     SCALE_MATCHING_METHODS = ["order","distribution","similarity_1","similarity_2","similarity_3","similarity_4"]
 
-    def __init__(self,method="deep",p=2,timeout = 30,multithreading = True, scale_matching_method = "order",importance_scale_fraction_taken=1.0,importance_calculation_strat = None,match_scale_in_space =1,augmentation_factor = 0.0):
+    def __init__(self,method="deep",p=2,timeout = 30,multithreading = True, scale_matching_method = "order",importance_scale_fraction_taken=1.0,importance_calculation_strat = 'multiplication',match_scale_in_space = 2,augmentation_factor = 0.0):
         """Topological signature computation.
 
         Args:
