@@ -25,7 +25,7 @@ class TopologicalZeroOrderLoss(LazyTorchModule):
     PER_FEATURE_LOSS_SCALE_ESTIMATION_METHODS =["match_scale_order","shallow","moor_method","modified_moor_method","deep"]
     SCALE_MATCHING_METHODS = ["order","distribution","similarity_1","similarity_2","similarity_3","similarity_4"]
 
-    def __init__(self,method="deep",p=2,timeout = 5,multithreading = True, scale_matching_method = "order",importance_scale_fraction_taken=1.0,importance_calculation_strat = None,match_scale_in_space =1,augmentation_factor = 0.0):
+    def __init__(self,method="deep",p=2,timeout = 30,multithreading = True, scale_matching_method = "order",importance_scale_fraction_taken=1.0,importance_calculation_strat = None,match_scale_in_space =1,augmentation_factor = 0.0):
         """Topological signature computation.
 
         Args:
@@ -35,7 +35,7 @@ class TopologicalZeroOrderLoss(LazyTorchModule):
         """
         self.perform_lazy_imports()
         super().__init__()
-        assert p in TopologicalZeroOrderLoss.LOSS_ORDERS
+        # assert p in TopologicalZeroOrderLoss.LOSS_ORDERS
         self.name = method
         self.p = p
         self.signature_calculator = self.ConnectivityEncoderCalculator
@@ -253,21 +253,55 @@ class TopologicalZeroOrderLoss(LazyTorchModule):
 
     def preprocess_dist_mat(self,D):
         D = self.to_numpy(D)
+        D = self.make_symmetric(D)
         D = self.augment_distance_matrix(D)
         D = self.perturb_distance_matrix(D)
         return D
     
-    def augment_distance_matrix(self,D):
+    def make_symmetric(self,matrix, mode="average"):
+        """
+        Ensures that a given square matrix is symmetric.
+        
+        Args:
+            matrix (np.ndarray): Input square matrix.
+            mode (str): Method to enforce symmetry. Options:
+                - "average" (default): Takes the average of (M + M.T) / 2
+                - "upper": Copies the upper triangle to the lower triangle
+                - "lower": Copies the lower triangle to the upper triangle
+        
+        Returns:
+            np.ndarray: Symmetric version of the input matrix.
+        """
+        assert matrix.shape[0] == matrix.shape[1], "Input must be a square matrix"
+        
+        if mode == "average":
+            return (matrix + matrix.T) / 2
+        elif mode == "upper":
+            return np.triu(matrix) + np.triu(matrix, 1).T
+        elif mode == "lower":
+            return np.tril(matrix) + np.tril(matrix, -1).T
+        else:
+            raise ValueError("Invalid mode. Choose from 'average', 'upper', or 'lower'.")
+    def augment_distance_matrix(self, D):
         if self.augmentation_factor != 0.0:
             high = self.augmentation_factor + 1
             low = 1 - self.augmentation_factor
+
+            # Generate the upper triangle (including diagonal)
             upper_triangle = np.random.rand(*D.shape) * (high - low) + low
+            np.fill_diagonal(upper_triangle, 1)
+
+            # Create the symmetric matrix by copying the upper triangle to the lower triangle
             symmetric_matrix = np.triu(upper_triangle) + np.triu(upper_triangle, 1).T
-            np.fill_diagonal(symmetric_matrix, 1)
-            
+
+            # Ensure symmetry
+            assert np.allclose(symmetric_matrix, symmetric_matrix.T), "The matrix is not symmetric."
+
+            # Apply the augmentation
             return D * symmetric_matrix
         else:
             return D
+
     
     def calulate_space_connectivity_encoding(self,distance_matrix):
         topo_encoder = self.signature_calculator(distance_matrix,importance_calculation_strat=self.importance_calculation_strat)
@@ -426,7 +460,17 @@ class TopologicalZeroOrderLoss(LazyTorchModule):
         elif self.p == 2:
             return nn.MSELoss()
         else:
-            raise ValueError(f"This loss {self.p} is not supported")
+            import torch
+            class LpLoss(nn.Module):
+                def __init__(self, p=2):
+                    super(LpLoss, self).__init__()
+                    self.p = p
+
+                def forward(self, input, target):
+                    # Compute the p-norm loss
+                    return torch.mean(torch.abs(input - target) ** self.p)
+            return LpLoss(p = self.p)
+            # raise ValueError(f"This loss {self.p} is not supported")
         
     def setup_multithreading(self):
         if self.multithreading and self.method == "deep":

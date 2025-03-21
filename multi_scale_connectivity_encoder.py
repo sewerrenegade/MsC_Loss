@@ -65,6 +65,8 @@ class ConnectivityEncoderCalculator:
         if len(score_list) == 0:
             return score_list
         avg_importance = sum(score_list)/len(score_list)
+        if avg_importance == 0:
+            return score_list
         return [score/avg_importance for score in score_list]
     
     def get_components_that_contain_these_points_at_this_scale_index(self,relevant_points,index_of_scale):
