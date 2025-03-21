@@ -66,7 +66,7 @@ class LpDistance:
         return None
     def get_settings(self):
         return {"p":self.p}
-    
+#not working DO NOT USE
 class UMAP_Distance:
     def __init__(self,n_neighbors = 15,target_perplexity=1.0,name = "UMAP_similarity_based_distance"):
         self.n_neighbors = n_neighbors
