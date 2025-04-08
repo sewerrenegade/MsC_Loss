@@ -1,10 +1,19 @@
 defaults:
   - defaults 
   - _self_ 
-name: "train_classifier_dino_prop"
+name: "on_off_classifier_dino_prop"
 student: true
 distillation_loss_name: 'prop_topo'
+dataset_name: "Acevedo" 
+k_fold: 5
+classifier_max_epoch: 800
 distance_fn_name: 'euclidean'
-distillation_loss_weight: {"on_off": "", "patience":10,"low_weight":0.0001}
-teacher_model_type: "dinobloom"
-kill_classification_loss: false
+
+distillation_loss_weight: {"on_off": "", "patience":50,"low_weight":0.0}
+teacher_model_type: "dino-S"
+# kill_classification_loss: true
+# take_last_checkpoint: true
+# distillation_loss_weight: 1
+classifier_lr: 0.00008
+different_learning_rate_for_classifier: true
+distillation_loss_config: {scale_matching_method: "order", importance_calculation_strat: "multiplication",match_scale_in_space: 1}

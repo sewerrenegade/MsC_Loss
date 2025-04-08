@@ -2,7 +2,8 @@ defaults:
   - defaults 
   - _self_ 
   
-name: "dinobloom_backbone"
-image_encoder_name: 'dino-l'
+name: "dino_backbone"
+image_encoder_name: 'dino-b'
 student: true
 repeat_exp: 10
+dataset_name: "imagenet_a"

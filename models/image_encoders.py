@@ -27,19 +27,32 @@ modified_models_feature_output_size = {
     "ResNet50":2048,
     "ResNet101":2048
 }
+model_params = {
+    "SqueezeNet1.0": "1.24M",
+    "SqueezeNet1.1": "1.24M", # Y
+    "ShuffleNetV2_x0.5": "1.37M",
+    "ShuffleNetV2_x1.5": "3.5M", 
+    "ShuffleNetV2_x2.0": "7.4M",# Y
+    "MobileNetV2": "3.5M", # Y
+    "ResNet18": "11.7M", #Y
+    "ResNet34": "21.8M",
+    "ResNet50": "25.6M", #Y
+    "ResNet101": "44.5M", #Y
+}
+
 
 # Define function to create feature encoder
 def create_feature_encoder(model_name, output_dim,use_pretrained_weights,dataset_type):
     import torch.nn as nn
-    from torchvision.models import squeezenet1_0, squeezenet1_1, shufflenet_v2_x0_5, shufflenet_v2_x1_5, shufflenet_v2_x2_0, mobilenet_v2, resnet18, resnet18, resnet34, resnet50
+    from torchvision.models import squeezenet1_0, squeezenet1_1, shufflenet_v2_x0_5, shufflenet_v2_x1_5, shufflenet_v2_x2_0, mobilenet_v2, resnet18, resnet18, resnet34, resnet50, resnet101
     
-    if model_name not in modified_models_feature_output_size:
+    if model_name not in modified_models_feature_output_size and "dino" not in model_name.lower():
         raise ValueError(f"Model '{model_name}' not found in available models.")
-    if "dinov2" in model_name.lower():
+    if "dino" in model_name.lower():
         from models.DinoV2.dinov2 import get_dino_w_resize_and_model_nb_of_params, get_dino_size
         size = get_dino_size(model_name)
-        model,_,out_dim = get_dino_w_resize_and_model_nb_of_params(size=size, target_data=dataset_type)
-        return model, out_dim
+        model,nb_params,out_dim = get_dino_w_resize_and_model_nb_of_params(size=size, target_data=dataset_type)
+        return model, out_dim ,nb_params
     feature_dim = modified_models_feature_output_size[model_name]
     hidden_dim = output_dim // 2  # Half the output dimension
     weights = "IMAGENET1K_V1" if use_pretrained_weights else None
@@ -61,7 +74,7 @@ def create_feature_encoder(model_name, output_dim,use_pretrained_weights,dataset
     elif model_name == "ResNet50":
         base_model = nn.Sequential(*list(resnet50(weights=weights).children())[:-1])
     elif model_name == "ResNet101":
-        base_model = nn.Sequential(*list(resnet50(weights=weights).children())[:-1])
+        base_model = nn.Sequential(*list(resnet101(weights=weights).children())[:-1])
     elif model_name == "MobileNetV2":
         base_model = mobilenet_v2(weights=weights).features
     else:
@@ -77,7 +90,7 @@ def create_feature_encoder(model_name, output_dim,use_pretrained_weights,dataset
         nn.Linear(hidden_dim, output_dim)  # FC2: hidden_dim -> output_dim
     )
 
-    return feature_encoder, output_dim
+    return feature_encoder, output_dim, sum(p.numel() for p in feature_encoder.parameters())
 
 
 if __name__ == "main":

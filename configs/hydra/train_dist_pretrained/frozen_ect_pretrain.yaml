@@ -1,9 +1,0 @@
-defaults:
-  - defaults 
-  - _self_ 
-  
-name: "frozen_ect_pretrain"
-student: true
-load_classifier_checkpoint_path: "wandb_logs/Connectivity_Distillation_Distillation_Exp/nkss0u74/checkpoints/last.ckpt"
-freeze_classifier_backbone: true
-project_name: "Connectivity_Distillation_Distillation_Exp"

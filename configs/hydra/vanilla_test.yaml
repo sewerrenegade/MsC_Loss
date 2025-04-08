@@ -4,6 +4,8 @@ defaults:
 
 name: "vanilla"
 student: true
-repeat_exp: 10
-image_encoder_name: "ShuffleNetV2_x1.5"
-dataset_name: "imagenet_a"
+image_encoder_name: "ResNet18" #"ShuffleNetV2_x1.5"
+dataset_name: "Acevedo" 
+k_fold: 5
+classifier_max_epoch: 250
+classifier_lr: 0.00001

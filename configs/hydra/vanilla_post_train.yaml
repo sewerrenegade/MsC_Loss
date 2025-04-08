@@ -1,0 +1,10 @@
+defaults:
+  - defaults
+  - _self_ 
+
+name: "post_vanilla"
+student: true
+k_fold: 5
+classifier_max_epoch: 200
+project_name: "post_train_2"
+freeze_classifier_backbone: true

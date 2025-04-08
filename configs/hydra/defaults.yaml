@@ -1,9 +1,5 @@
 defaults:
   - _self_
-
-hydra:
-  run:
-    dir: .
     
 name: "default_run_name"
 
@@ -13,9 +9,13 @@ research_entity: "milad-research"
 
 hpc: true
 repeat_exp: 5
+stratify_dataset: true
+k_fold: -1
 
-student: true
-dataset_name: "bone_marrow" # Acevedo
+optimizer_name: "adam" #adan,adamw,sgd
+
+student: true #if true it means we are training a student, if false means we are training a teacher (ae)
+dataset_name: "Acevedo" # bone_marrow
 ae_latent_dim: 32
 ae_max_epoch: 100
 ae_lr: 0.0001
@@ -25,16 +25,18 @@ ae_batch_size: 32
 
 image_encoder_name: 'ResNet18'
 use_image_net_weights: true
-classifier_max_epoch: 20
+classifier_max_epoch: 100
 classifier_lr: 0.00008
 classifier_batch_size: 32
 classifier_weight_decay: 0.000001
 classifier_backbone_out_dim: 384
+class_weighting: false
+label_smoothing: 0.0
 take_last_checkpoint: false
 load_classifier_checkpoint_path: ""
 freeze_classifier_backbone: false
 
-
+experiment_tags: []
 
 
 teacher_model_type: ''
@@ -45,7 +47,17 @@ distillation_loss_name: ''
 distillation_loss_config: {}
 kill_classification_loss: false
 kill_distillation_loss: false
+normalize_distance_matrix: True
 
 different_learning_rate_for_classifier: false
 
-stratify_dataset: true
+checkpoint_dir: "/lustre/groups/shared/users/milad.bassil_2/checkpoints/"
+base_data_dir: "/lustre/groups/shared/users/milad.bassil/datasets/"
+
+hydra:
+  run:
+    dir: .
+  job_logging:
+    disable_existing_loggers: true
+    root:
+      handlers: []

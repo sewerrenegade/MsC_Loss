@@ -1,0 +1,11 @@
+defaults:
+  - defaults 
+  - _self_ 
+name: "frozen_resnet"
+student: true
+dataset_name: "Acevedo" 
+k_fold: 5
+classifier_max_epoch: 20
+
+classifier_lr: 0.00002
+freeze_classifier_backbone: True
