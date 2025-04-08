@@ -13,10 +13,10 @@ from PIL import Image
 from sklearn.preprocessing import LabelEncoder
 
 
-AUTO_ENCODER_PROPORTION_OF_DATA = 0.875
+AUTO_ENCODER_PROPORTION_OF_DATA = 0.2
 CLASSIFIER_PROPORTION_OF_DATA = 1 - AUTO_ENCODER_PROPORTION_OF_DATA
 AUTO_ENCODER_SPLIT = (0.6, 0.2, 0.2)
-CLASSIFIER_SPLIT = (0.2, 0.2, 0.6)
+CLASSIFIER_SPLIT = (0.5, 0.2, 0.3)
 DATASET_TARGETS = ['ae', 'classifier']
 
 class BoneMarrowDataset(Dataset):

@@ -11,10 +11,10 @@ from sklearn.model_selection import KFold, StratifiedShuffleSplit,StratifiedKFol
 from pytorch_lightning import LightningDataModule
 from PIL import Image
 
-AUTO_ENCODER_PROPORTION_OF_DATA = 0.3
+AUTO_ENCODER_PROPORTION_OF_DATA = 0.1
 CLASSIFIER_PROPORTION_OF_DATA = 1 - AUTO_ENCODER_PROPORTION_OF_DATA
-AUTO_ENCODER_SPLIT = (0.6, 0.2, 0.2)
-CLASSIFIER_SPLIT = (0.55, 0.1, 0.35)
+AUTO_ENCODER_SPLIT = (0.4, 0.3, 0.3)
+CLASSIFIER_SPLIT = (0.6, 0.2, 0.2)
 DATASET_TARGETS = ['ae','classifier']
 class ImageNetADataModule(LightningDataModule):
     def __init__(self, dataset_target = "classifier", data_dir="imagenet_a/data_imagenet_a", base_data_dir ="",batch_size=32, num_workers=4,stratify = False,k_fold = -1,fold_nb = 0):

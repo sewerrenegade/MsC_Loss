@@ -47,10 +47,16 @@ def sweep():
         logger.log_hyperparams(config)
 
         print(f"Running experiment with name: {config['name']}, iteration {i+1}/{config['repeat_exp']}")
+
+        fold_nb = config.get("fold_nb",None)
+        if fold_nb is None and config["k_fold"] >= 2:
+            raise ValueError("You have requested K fold validation in sweep mode, however u are not passing the fold number in the sweep config file. add 'fold_nb' to the sweep ")
+            
+            
         if not config["student"]:
             train_ae(config,logger)
         else:
-            train_classifier(config,logger)
+            train_classifier(config,logger,fold_nb)
         wandb.finish()
         
 if __name__ == "__main__":

@@ -100,25 +100,8 @@ def train_experiment(config):
         repeats = [config.get("fold_nb",None)]
         
     for i in repeats:
-        BASE_LOG_DIR = "/home/icb/yufan.xia/milad.bassil"  # The base directory for logs
-        save_dir = os.path.join(BASE_LOG_DIR, config['logs_save_dir'])  # The subdirectory for saving logs
-
-        # Set the WANDB_DIR environment variable to the save directory
-        os.environ["WANDB_DIR"] = save_dir
-
-        # Make sure the directory exists
-        os.makedirs(save_dir, exist_ok=True)
-
-        # Initialize the WandbLogger for PyTorch Lightning
-        logger = WandbLogger(
-            offline=False,
-            log_model=False,
-            name=config["name"],
-            project=config['project_name'],
-            entity="milad-research",
-            save_dir=save_dir,  # Specify the save directory
-            tags=config["experiment_tags"]
-        )
+        BASE_LOG_DIR = "/ictstr01/home/icb/milad.bassil/" # os.getcwd()
+        logger = WandbLogger(offline = False,log_model=False, name=config["name"] ,project=config['project_name'], entity="milad-research",save_dir=os.path.join(BASE_LOG_DIR, config['logs_save_dir']),tags = config["experiment_tags"])
         logger.log_hyperparams(config)
 
         print(f"Running experiment with name: {config['name']}, iteration {i+1}/{len(repeats)}")
@@ -152,3 +135,119 @@ if __name__ == "__main__":
     print("Finished Import")
     main()
 #python your_script.py --config-dir /path/to/configs
+
+
+# from pytorch_lightning.callbacks import ModelCheckpoint
+
+# class CustomModelCheckpoint(ModelCheckpoint):
+#     def __init__(self, *args, **kwargs):
+#         self.save_top_k = kwargs.get("top_k_to_save", 3)
+#         if "top_k_to_save" in kwargs:
+#             del kwargs["top_k_to_save"]
+#         super().__init__(*args, **kwargs)
+
+#         assert isinstance(self.save_top_k, int)
+#         self.best_models = []  # Store tuples of (val_correct_epoch, val_loss_epoch, filepath)
+
+#     def get_best_path(self):
+#         """Return the path of the best model (highest val_correct_epoch, lowest val_loss_epoch for ties)."""
+#         return self.best_models[0][2] if self.best_models else None
+
+#     def _compare_metrics(self, current_metrics, trainer, pl_module):
+#         """
+#         Compare the current metrics (val_correct_epoch, val_loss_epoch) with the saved models.
+#         Keeps the top `save_top_k` models, prioritizing val_correct_epoch and resolving ties using val_loss_epoch.
+#         """
+#         current_correct = current_metrics["val_correct_epoch"]
+#         current_loss = current_metrics["val_loss_epoch"]
+
+#         # Save the current model first
+#         current_model_path = self._save_model(trainer, pl_module)
+
+#         # Insert in the correct position based on sorting criteria
+#         inserted = False
+#         for i, (correct, loss, _) in enumerate(self.best_models):
+#             if current_correct > correct or (current_correct == correct and current_loss < loss):
+#                 self.best_models.insert(i, (current_correct, current_loss, current_model_path))
+#                 inserted = True
+#                 break
+        
+#         if not inserted and len(self.best_models) < self.save_top_k:
+#             self.best_models.append((current_correct, current_loss, current_model_path))
+
+#         # Ensure we only keep the top `save_top_k` models
+#         self.best_models = sorted(self.best_models, key=lambda x: (-x[0], x[1]))[:self.save_top_k]  # Sort by correct (desc), loss (asc)
+        
+#     def on_validation_end(self, trainer, pl_module):
+#         """
+#         Called at the end of validation. This determines whether to save the model based on metrics.
+#         """
+#         logs = trainer.callback_metrics
+#         if "val_correct_epoch" not in logs or "val_loss_epoch" not in logs:
+#             return  # Avoid errors if metrics are missing
+
+#         current_metrics = {
+#             "val_correct_epoch": logs["val_correct_epoch"].item(),
+#             "val_loss_epoch": logs["val_loss_epoch"].item()
+#         }
+
+#         # Compare and update best models
+#         if pl_module.current_epoch != 0:
+#             self._compare_metrics(current_metrics, trainer, pl_module)
+#             self.custom_best_model_path = self.best_models[0][2]  # Update best model path
+
+#             # Debug print to verify sorting behavior
+#             print(f"Best models (sorted): {self.best_models}")
+
+#     def _save_model(self, trainer, pl_module):
+#         """
+#         Use ModelCheckpoint's internal save logic to save the model.
+#         """
+#         name_metrics = {"epoch": trainer.current_epoch}
+#         name_metrics.update(trainer.callback_metrics)
+#         filepath = self.format_checkpoint_name(name_metrics)
+#         self._save_checkpoint(trainer, filepath)
+#         return filepath  # Return saved model path
+
+# custom_colors = [
+#     '#377eb8', '#ff7f00', '#4daf4a', '#f781bf', '#a65628', 
+#     '#984ea3', '#999999', '#e41a1c', '#dede00', '#8dd3c7',
+#     '#fb8072', '#80b1d3', '#fdb462', '#b3de69', '#fccde5',
+#     '#bc80bd', '#ccebc5', '#ffed6f', '#1f78b4', '#33a02c',
+#     '#ffb3b3', '#b3b3ff', '#ffd700', '#7fc97f', '#beaed4'
+# ]
+# markers = ['o', '^', 's', 'D', 'P', 'X', '*', 'h', 'v', '<']
+# def plot_and_log_2D_embedding(embedding,labels,name,log_wandb = True):
+
+#     assert len(embedding) == len(labels)
+#     le = LabelEncoder()
+#     y = le.fit_transform(labels)  # Convert labels to integers
+#     label_names = le.classes_  # Get label names for the legend
+#     reducers = {"UMAP":umap.UMAP(n_components=2),"PHATE": phate.PHATE(n_components=2)}
+#     for reducer_name,reducer in reducers.items():
+#         embedding_2D = reducer.fit_transform(embedding)
+
+#         # Create a scatter plot with matplotlib
+#         plt.figure(figsize=(10, 7))
+
+#         # Generate color map
+#         # colors = cm.rainbow(np.linspace(0, 1, len(np.unique(y))))
+#         #plt.cm.tab20.colors + plt.cm.tab20b.colors[:5]
+#         cmap = ListedColormap(custom_colors)
+
+#         # Plot each label with a specific color
+#         for i, label in enumerate(np.unique(y)):
+#             plt.scatter(embedding_2D[y == label, 0], embedding_2D[y == label, 1], marker=markers[i % len(markers)],
+#                         color=cmap(i), label=label_names[label], alpha=0.7, s=30)
+
+#         # Add legend to map colors to labels
+#         plt.legend(title="Labels", bbox_to_anchor=(1.05, 1), loc='upper left')  
+#         plt.title(f"{name} Encoder {reducer_name} Embeddings")
+#         plt.xlabel(f"{reducer_name} Dimension 1")
+#         plt.ylabel(f"{reducer_name} Dimension 2")
+#         plt.tight_layout()
+#         if log_wandb:
+#             wandb.log({f"{name}_{reducer_name}": wandb.Image(plt)})
+#         else:
+#             plt.savefig(f"{name}_{reducer_name}", bbox_inches='tight')
+#         plt.close()

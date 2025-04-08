@@ -1,0 +1,50 @@
+method: grid
+parameters:
+  classifier_lr:
+    values:
+      - 2e-05
+  classifier_max_epoch:
+    values:
+      - 100
+  config_name:
+    values:
+      - distill_dino_to_student_euc
+  config_path:
+    values:
+      - configs/hydra
+  dataset_name:
+    values:
+      - imagenet_a
+      - bone_marrow
+  distillation_loss_name:
+    values:
+      - prop_topo
+      - moor_topo
+      - l2
+      - ect
+      - mds
+  experiment_tags:
+    values:
+      - - exp_1
+  fold_nb:
+    values:
+      - 0
+      - 1
+  image_encoder_name:
+    values:
+      - MobileNetV2
+      - ShuffleNetV2_x2.0
+      - ResNet18
+      - ResNet50
+      - ShuffleNetV2_x0.5
+  k_fold:
+    values:
+      - 5
+  kill_classification_loss:
+    values:
+      - true
+  optimizer_name:
+    values:
+      - adamw
+program: sweep_injection.py
+project: final_distillaiton_2

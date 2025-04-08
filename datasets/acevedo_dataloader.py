@@ -11,10 +11,10 @@ from sklearn.model_selection import KFold, StratifiedKFold, StratifiedShuffleSpl
 from pytorch_lightning import LightningDataModule
 from PIL import Image
 
-AUTO_ENCODER_PROPORTION_OF_DATA = 0.85
+AUTO_ENCODER_PROPORTION_OF_DATA = 0.2
 CLASSIFIER_PROPORTION_OF_DATA = 1 - AUTO_ENCODER_PROPORTION_OF_DATA
 AUTO_ENCODER_SPLIT = (0.6, 0.2, 0.2)
-CLASSIFIER_SPLIT = (0.05, 0.05, 0.9)
+CLASSIFIER_SPLIT = (0.5, 0.2, 0.3)
 DATASET_TARGETS = ['ae','classifier']
 class DualAcevedoImageDataModule(LightningDataModule):
     def __init__(self, dataset_target = "classifier", data_dir=os.path.join("Acevedo", "processed_images_144"), base_data_dir = "",batch_size=32, num_workers=4,stratify = False,k_fold = -1,fold_nb = 0):
@@ -33,6 +33,7 @@ class DualAcevedoImageDataModule(LightningDataModule):
         self.final_data_dir = data_dir
         self.base_dir = base_data_dir
         self.data_dir = os.path.join(self.base_dir,self.final_data_dir)
+        print(f"looking for data in {self.data_dir}")
         self.ae_proportion = AUTO_ENCODER_PROPORTION_OF_DATA
         self.ae_splits = AUTO_ENCODER_SPLIT
         self.classifier_splits = CLASSIFIER_SPLIT
@@ -163,11 +164,31 @@ class DualAcevedoImageDataModule(LightningDataModule):
             skf = StratifiedKFold(n_splits=self.k_fold, shuffle=True, random_state=SEED)
     
             # Iterate through folds and select the desired split
+            print(f"[DEBUG] Requested fold number: {self.fold_nb}")
+            print(f"[DEBUG] Total number of samples in train_val_idx: {len(train_val_idx)}")
+            print(f"[DEBUG] Unique classes in target: {np.unique(dataset_targets[train_val_idx])}")
+
+            found_split = False
+
             for fold_idx, (train_idx, val_idx) in enumerate(skf.split(np.zeros(len(train_val_idx)), dataset_targets[train_val_idx])):
+                print(f"[DEBUG] fold_idx: {fold_idx} — Train size: {len(train_idx)} | Val size: {len(val_idx)}")
+                
                 if fold_idx == self.fold_nb:  # Select the specific fold
+                    print(f"[DEBUG] -> Match found for fold {fold_idx}")
                     self.train_set = Subset(dataset, [train_val_idx[i] for i in train_idx])
                     self.val_set = Subset(dataset, [train_val_idx[i] for i in val_idx])
-                    break  # Stop once we find the correct split
+                    found_split = True
+                    break
+
+            if not found_split:
+                total_folds = fold_idx + 1
+                raise ValueError(
+                    f"[ERROR] Could not find split {self.fold_nb}. Only {total_folds} folds were available.\n"
+                    f"Possible reasons:\n"
+                    f" - self.fold_nb >= number of splits ({total_folds})\n"
+                    f" - dataset_targets[train_val_idx] is not stratifiable\n"
+                    f" - train_val_idx might be empty or corrupted\n"
+                )
         # Helper function to print class distributions
         
         print(f"Total size of ImagenetA {total_samples}")
