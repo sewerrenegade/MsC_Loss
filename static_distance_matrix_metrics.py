@@ -33,29 +33,34 @@ class StaticDistanceMatrixMetricCalculator:
         }
         
     @staticmethod
-    def calculate_distance_matrix_metrics(distance_matrix,labels):
+    def calculate_distance_matrix_metrics(distance_matrix, labels):
         overall_ratio, class_wise_ratios = StaticDistanceMatrixMetricCalculator.average_inter_intra_class_distance_ratio(distance_matrix, labels)
-        intra_inter_class_distance_matrix_mean, intra_inter_class_distance_matrix_std = StaticDistanceMatrixMetricCalculator.average_inter_intra_class_distance_matrix(distance_matrix,labels)
+        intra_inter_class_distance_matrix_mean, intra_inter_class_distance_matrix_std = StaticDistanceMatrixMetricCalculator.average_inter_intra_class_distance_matrix(distance_matrix, labels)
         triplet_loss = StaticDistanceMatrixMetricCalculator.evaluate_triplet_loss(distance_matrix, labels)
         silhouette_score = StaticDistanceMatrixMetricCalculator.compute_silhouette_score_from_distance_matrix(distance_matrix, labels)
         loocv_knn_acc, loocv_knn_acc_std, loocv_knn_report, loocv_confusion_matrix = StaticDistanceMatrixMetricCalculator.knn_loocv_accuracy(distance_matrix, labels)
-        knn_acc, knn_acc_std, knn_report, knn_confusion_matrix = StaticDistanceMatrixMetricCalculator.evaluate_knn_classifier_from_distance_matrix(distance_matrix, labels)
+
+        # Compute k-NN metrics for k = 1, 3, 5
+        knn_metrics = {}
+        for k in [1, 3, 5]:
+            acc, acc_std, report, cm = StaticDistanceMatrixMetricCalculator.evaluate_knn_classifier_from_distance_matrix(distance_matrix, labels, k=k)
+            knn_metrics[f"knn_acc_k={k}"] = acc
+            knn_metrics[f"knn_acc_std_k={k}"] = acc_std
+            knn_metrics[f"knn_report_k={k}"] = report
+            knn_metrics[f"knn_confusion_matrix_k={k}"] = cm
 
         metrics_dict = {
             "intra_to_inter_class_distance_overall_ratio": overall_ratio,
-            "intra_to_inter_class_distance_overall_per_class_ratio":class_wise_ratios,
-            "intra_inter_class_distance_matrix_mean":intra_inter_class_distance_matrix_mean,
-            "intra_inter_class_distance_matrix_std":intra_inter_class_distance_matrix_std,
+            "intra_to_inter_class_distance_overall_per_class_ratio": class_wise_ratios,
+            "intra_inter_class_distance_matrix_mean": intra_inter_class_distance_matrix_mean,
+            "intra_inter_class_distance_matrix_std": intra_inter_class_distance_matrix_std,
             "triplet_loss": triplet_loss,
             "silhouette_score": silhouette_score,
             "loocv_knn_acc": loocv_knn_acc,
             "loocv_knn_acc_std": loocv_knn_acc_std,
             "loocv_knn_report": loocv_knn_report,
             "loocv_confusion_matrix": loocv_confusion_matrix,
-            "knn_acc": knn_acc,
-            "knn_acc_std": knn_acc_std,
-            "knn_report": knn_report,
-            "knn_confusion_matrix": knn_confusion_matrix
+            **knn_metrics  # merge all knn@k metrics
         }
 
         return metrics_dict
