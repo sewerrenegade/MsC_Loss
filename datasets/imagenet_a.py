@@ -2,7 +2,7 @@ import os
 from typing import Counter
 from torchvision import datasets, transforms
 import torch
-
+## path to eve data /lustre/groups/shared/users/milad.bassil_2/eve_imgs
 SEED = 42
 torch.manual_seed(SEED)
 from torch.utils.data import DataLoader, random_split, Subset
