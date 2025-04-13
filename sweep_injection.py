@@ -5,6 +5,21 @@ from hydra import initialize, compose
 from omegaconf import OmegaConf
 from train import train_ae, train_classifier
 
+def clear_tmp_folder():
+    import shutil
+    import tempfile
+    import os
+
+    # Clean up all temp dirs that start with 'tmp'
+    tmp_dir_root = tempfile.gettempdir()
+
+    for d in os.listdir(tmp_dir_root):
+        full_path = os.path.join(tmp_dir_root, d)
+        if d.startswith("tmp") and os.path.isdir(full_path):
+            try:
+                shutil.rmtree(full_path)
+            except Exception as e:
+                print(f"Could not delete {full_path}: {e}")
 def reconstruct_nested_dict(flat_dict):
     nested_dict = {}
 
@@ -58,6 +73,7 @@ def sweep():
         else:
             train_classifier(config,logger,fold_nb)
         wandb.finish()
+        
         
 if __name__ == "__main__":
     sweep()

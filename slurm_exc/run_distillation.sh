@@ -20,7 +20,6 @@ if [ -z "$CONFIG_NAME" ]; then
 fi
 
 echo "Running config: $CONFIG_NAME"
-
 cd /home/icb/yufan.xia/milad.bassil/Topological_Knowledge_Distillation
 source /home/icb/yufan.xia/tools/apps/mamba/etc/profile.d/conda.sh
 conda init

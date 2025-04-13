@@ -17,8 +17,7 @@ source /home/icb/yufan.xia/tools/apps/mamba/etc/profile.d/conda.sh
 conda init
 conda activate milad
 echo "Activated environment: $CONDA_DEFAULT_ENV"
-
 wandb login
 
 #wandb agent milad-research/final_distillaiton_2/0dfmjq9o ## aceve
-wandb agent milad-research/final_distillaiton_2/1lxj39h8 ##bm imangeA
+wandb agent milad-research/final_distillaiton_2/lgewqbra ##bm imangeA

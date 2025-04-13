@@ -26,7 +26,7 @@ parameters:
   fold_nb:
     values:
       - 0
-  freeze_image_encoder:
+  freeze_classifier_backbone:
     values:
       - true
   image_encoder_name:
